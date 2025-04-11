@@ -1,0 +1,10 @@
+numpy==1.26.4
+torch @ https://download.pytorch.org/whl/cu121_full/torch-2.5.1%2Bcu121-cp310-cp310-linux_x86_64.whl
+tqdm==4.67.1
+matplotlib==3.7.5
+seaborn==0.12.2
+wandb==0.19.1
+pandas==2.2.3
+scikit-learn==1.2.2
+transformers==4.47.0
+optuna==4.2.1

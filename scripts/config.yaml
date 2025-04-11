@@ -1,0 +1,12 @@
+model_configs:
+  PubMedBERT:
+    model_name: "NeuML/pubmedbert-base-embeddings"
+    tokenizer: "NeuML/pubmedbert-base-embeddings"
+
+  BERT:
+    model_name: "bert-base-uncased"
+    tokenizer: "bert-base-uncased"
+
+  BioBERT:
+    model_name: "dmis-lab/biobert-v1.1"
+    tokenizer: "dmis-lab/biobert-v1.1"
