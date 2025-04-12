@@ -16,3 +16,6 @@ __pycache__/
 
 # ignore the env file
 .env
+
+# ignore ssh key
+id_rsa
