@@ -286,7 +286,7 @@ def compute_f1(labels, preds):
 ############## RE Training ###################
 
 
-def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, device, max_norm, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id, threshold):
+def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, device, max_norm, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id, threshold,track_wandb=True):
     """
     Trains and evaluates a relation classification model.
     """
@@ -348,14 +348,15 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
             batch_f1_micro = f1_score(labels.cpu().numpy(), preds, average="micro") # calculate micro F1
             batch_f1_macro = f1_score(labels.cpu().numpy(), preds, average="macro") # calculate macro F1
 
-            # log the micro F1 and macro F1 into wandb
-            wandb.log({
-                "step": global_step,
-                "train_loss_batch": loss.item(),
-                "train_f1_micro_batch": batch_f1_micro,
-                "train_f1_macro_batch": batch_f1_macro,
-            })
-            global_step += 1
+            if track_wandb:
+                # log the micro F1 and macro F1 into wandb
+                wandb.log({
+                    "step": global_step,
+                    "train_loss_batch": loss.item(),
+                    "train_f1_micro_batch": batch_f1_micro,
+                    "train_f1_macro_batch": batch_f1_macro,
+                })
+                global_step += 1
 
         train_losses.append(total_train_loss / len(train_dataloader))
         train_f1_micro = f1_score(all_train_labels, all_train_preds, average="micro")
@@ -363,11 +364,12 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
         train_f1s_micro.append(train_f1_micro)
         train_f1s_macro.append(train_f1_macro)
 
-        wandb.log({
-        "train_loss": train_losses[-1],  
-        "train_f1_micro": train_f1s_micro[-1],
-        "train_f1_macro": train_f1s_macro[-1],})
-        #}, step=epoch + 1) # log per epoch not step
+        if track_wandb:
+            wandb.log({
+            "train_loss": train_losses[-1],  
+            "train_f1_micro": train_f1s_micro[-1],
+            "train_f1_macro": train_f1s_macro[-1],})
+            #}, step=epoch + 1) # log per epoch not step
 
         model.eval()
         total_val_loss = 0
@@ -394,12 +396,13 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
         val_f1s_micro.append(val_f1_micro)
         val_f1s_macro.append(val_f1_macro)
 
-        wandb.log({
-        "step": global_step_val,
-        "val_loss": val_losses[-1],  
-        "val_f1_micro": val_f1s_micro[-1],
-        "val_f1_macro": val_f1s_macro[-1],
-        }) 
+        if track_wandb:
+            wandb.log({
+            "step": global_step_val,
+            "val_loss": val_losses[-1],  
+            "val_f1_micro": val_f1s_micro[-1],
+            "val_f1_macro": val_f1s_macro[-1],
+            }) 
 
         print(f"Epoch {epoch + 1}/{num_epochs}")
         print(f"Training Loss: {train_losses[-1]:.3f}, Train F1 macro: {train_f1s_macro[-1]:.3f},Train F1 micro: {train_f1s_micro[-1]:.3f} ")
@@ -438,12 +441,13 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
     print(f"Test micro f1: {test_f1_micro:.4f}")
     print(f"Test macro f1: {test_f1_macro:.4f}")
 
-    wandb.log({
-        "test_f1_micro": test_f1_micro,
-        "test_f1_macro": test_f1_macro,
-    })
+    if track_wandb:
+        wandb.log({
+            "test_f1_micro": test_f1_micro,
+            "test_f1_macro": test_f1_macro,
+        })
 
-    wandb.finish()
+        wandb.finish()
 
     return model, test_f1_micro, test_f1_macro, train_losses, val_losses, train_f1s_micro, train_f1s_macro, val_f1s_micro, val_f1_macro
 

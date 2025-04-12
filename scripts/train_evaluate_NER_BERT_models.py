@@ -13,6 +13,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from transformers import AutoTokenizer, AutoModelForTokenClassification
 
+
 script_dir = os.path.dirname(os.path.abspath(__file__))
 os.chdir(script_dir)
 print(script_dir)
