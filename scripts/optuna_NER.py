@@ -1,4 +1,5 @@
 from config import MODEL_CONFIGS
+from utils import set_seed
 from datasets import create_dataloaders
 from utils import train_and_evaluate_NER
 from transformers import AutoTokenizer
@@ -15,6 +16,8 @@ DATA_DIR = os.path.join(script_dir,"..", "gutbrainie2025")
 
 num_labels = 27
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+
+set_seed(42)
 
 results = {}
 
@@ -58,7 +61,7 @@ def objective(trial, model_name):
 for model_name in MODEL_CONFIGS.keys():
     print(f"\nStarting hyperparameter tuning for {model_name}...")
     study = optuna.create_study(direction='maximize') # we want to maximize micro f1 on test set
-    study.optimize(lambda trial: objective(trial, model_name), n_trials=1) # change to 20
+    study.optimize(lambda trial: objective(trial, model_name), n_trials=20)
 
     print(f"Best hyperparameters for {model_name}: {study.best_params}")
     

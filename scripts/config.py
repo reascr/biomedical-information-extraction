@@ -23,5 +23,5 @@ label_map = {
     24: "I-microbiome", 25: "I-statistical technique", 26: "O"
 }
 
-#seeds = [42,1234,29,7,123]
-seeds = [1]
+seeds = [42,1234,29,7,123]
+#seeds = [1] # test 

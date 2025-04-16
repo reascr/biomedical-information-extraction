@@ -1,4 +1,5 @@
 from config import MODEL_CONFIGS, label_map
+from models import RelationClassifier
 import os
 import numpy as np
 import torch
@@ -9,8 +10,10 @@ import matplotlib.pyplot as plt
 import seaborn as sns
 import wandb
 import pandas as pd
-from sklearn.metrics import f1_score, confusion_matrix
+from sklearn.metrics import f1_score, confusion_matrix, precision_recall_fscore_support
+from scipy.stats import pearsonr
 from transformers import BertForTokenClassification, AutoModel, get_scheduler, AdamW
+
 
 ############# Task independent functions ############
 
@@ -74,7 +77,7 @@ def calculate_averages(model_name, bert_model_results):
 ############### NER Training #################
 
 def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, num_labels, device, max_norm = 1.0, track_wandb=True):
-    set_seed(seed)
+    #set_seed(seed)
     model = BertForTokenClassification.from_pretrained(MODEL_CONFIGS[model_name]["model_name"], num_labels=num_labels)
     model.config.hidden_dropout_prob = dropout
     model.config.attention_probs_dropout_prob = dropout
@@ -90,7 +93,7 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
     num_warmup_steps = int(0.1 * num_training_steps)
     scheduler = get_scheduler("linear", optimizer=optimizer, num_warmup_steps=num_warmup_steps, num_training_steps=num_training_steps)
 
-    # parameters for early stopping
+    # early stopping
     best_val_loss = float('inf')
     patience = 2
     patience_counter = 0
@@ -112,17 +115,16 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
             input_ids = batch['input_ids'].to(device)
             attention_mask = batch['attention_mask'].to(device)
             labels = batch['labels'].to(device)
-            
 
             optimizer.zero_grad()
             outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
             #print(outputs[0]) # sanity check: verify whether loss is good 3.2689 -ln(1/27)
             logits = outputs.logits
-            #print(logits.shape)# sanity check: (batch_size, sequence_length, num_labels)
+            #print(logits.shape)# sanity check: (batch_size, sequence_length, num_labels) 
 
             loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
             loss.backward()
-            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm) # lets try out 10
+            torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
             optimizer.step()
             scheduler.step()
 
@@ -134,7 +136,7 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
         train_micro_f1, train_macro_f1 = compute_f1(total_train_labels, total_train_preds)
         train_f1s.append(train_micro_f1)
 
-        # Validation
+        # validation
         model.eval()
         total_val_labels = []
         total_val_preds = []
@@ -149,7 +151,6 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
                 outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
                 logits = outputs.logits
                 
-                # weighted loss
                 loss = loss_fct(logits.view(-1, num_labels), labels.view(-1))
                 total_val_loss += loss.item()
                 total_val_labels.extend(labels.cpu().numpy())
@@ -204,9 +205,8 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
     test_micro_f1, test_macro_f1 = compute_f1(total_test_labels, total_test_preds)
     print(f"Test micro F1: {test_micro_f1}, Test macro F1: {test_macro_f1}")
 
-    # outcomment this code if you want to calculate per class frequencies and correlations
-
-    '''# calculate the per class F1 (and the frequencies of the classes)
+    ################ outcomment this code if you do not want to calculate per class frequencies and correlations!
+    # calculate the per class F1 (and the frequencies of the classes)
     per_class_f1 = compute_per_class_f1(total_test_labels, total_test_preds, label_map)
     print("Per-class F1 scores:")
     for label, scores in per_class_f1.items():
@@ -220,23 +220,20 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
             "support": scores["support"]
         })
     
-    df = pd.DataFrame(rows) # convert in dataframe to easier compute the person correlation
+    df = pd.DataFrame(rows) 
     
     # get the Pearson correlation between support (frequency) and the F1 score
     corr, p_value = pearsonr(df["support"], df["f1"])
     print(f"Pearson correlation between frequency and F1: {corr} (p={p_value})")
-
-    # get the Pearson correlation but exclude the most frequent class (0)
-    df_excluded = df.iloc[:-1]
-    corr_excluded, p_value_excluded = pearsonr(df_excluded["support"], df_excluded["f1"])
-    print(f"Pearson correlation between frequency and F1 (while excluding majority class = 0): {corr_excluded} (p={p_value_excluded})")
     
-    # plot the relationship
-    sns.scatterplot(data=df_excluded, x="support", y="f1")
+    # plot the relationship/correlation
+    sns.scatterplot(data=df, x="support", y="f1")
     plt.title("Correlation between NE Class Frequency and F1 Score")
     plt.xlabel("Support (Frequency)")
     plt.ylabel("F1 Score")
-    plt.show()'''
+    plt.tight_layout()
+    plt.show()
+    ####################
         
     
    # plot the confusion matrix
@@ -254,8 +251,8 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
         annot_kws={"size": 8}
     )
 
-    plt.xticks(rotation=45)  # rotate ticks for better readability
-    plt.yticks(rotation=45)
+    #plt.xticks(rotation=45)  # rotate ticks for better readability
+    #plt.yticks(rotation=45)
 
     plt.xlabel('Predicted labels')
     plt.ylabel('True labels')
@@ -283,6 +280,29 @@ def compute_f1(labels, preds):
 
     return f1_score(labels, preds, average="micro"), f1_score(labels, preds, average="macro")
 
+
+def compute_per_class_f1(labels, preds, label_map):
+    labels = np.array(labels).flatten()
+    preds = np.array(preds).flatten()
+    valid_indices = labels != -100 # remove padding tokens (-100)
+    labels = labels[valid_indices]
+    preds = preds[valid_indices]
+    
+    # get precision, recall, f1 and frequency (=support) per class
+    precision, recall, f1, support = precision_recall_fscore_support(labels, preds, average=None) # this makes sure that we calculate per-label precisions, recalls, F1-scores and supports (=frequencies)
+    
+    # map the label indexes to class names for better reading
+    per_class_scores = {}
+    for idx, label_name in label_map.items():
+        per_class_scores[label_name] = {
+            "precision": precision[idx],
+            "recall": recall[idx],
+            "f1": f1[idx],
+            "support": support[idx]
+        }
+    return per_class_scores
+    
+
 ############## RE Training ###################
 
 
@@ -290,7 +310,7 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
     """
     Trains and evaluates a relation classification model.
     """
-    set_seed(seed) #### TO DO: Das könnte man hier einmal alles auslagern und dann für NER und RE beides nutzen?
+    #set_seed(seed) #### TO DO: Das könnte man hier einmal alles auslagern und dann für NER und RE beides nutzen?
     
     model_str = MODEL_CONFIGS[model_name]["model_name"]
     model = AutoModel.from_pretrained(model_str)

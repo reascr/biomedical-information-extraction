@@ -1,6 +1,6 @@
 from config import MODEL_CONFIGS
 from datasets import create_dataloaders_RE
-from utils import train_and_evaluate_RE
+from utils import train_and_evaluate_RE, set_seed
 from transformers import AutoTokenizer
 import optuna
 import json
@@ -18,6 +18,8 @@ num_epochs = 6
 threshold = 0.6
 special_tokens = ['<ent1>', '</ent1>', '<ent2>', '</ent2>'] # entity markers that will be added to the tokenizers
 results = {}
+
+set_seed(42)
 
 # code modified after https://optuna.org/#code_examples, assessed Apr 11, 2025 (and https://optuna.readthedocs.io/, assessed Apr 11, 2025)
 def objective(trial, model_name):
@@ -43,14 +45,11 @@ def objective(trial, model_name):
     # create data loaders for the model
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders_RE(batch_size, tokenizer, device)
 
-
-#train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, device, max_norm, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id, threshold):
-
     # train and evaluate the model
     model, test_micro_f1, test_macro_f1, _, _, _, _ , _, _= train_and_evaluate_RE(
         model_name=model_name,
         tokenizer_voc_size= tokenizer_voc_size,
-        seed=42, # to ensure the differences in the scores are due to hyperparamaters and to ensure reproducibility
+        seed=42,
         train_dataloader=train_dataloader,
         val_dataloader=val_dataloader,
         test_dataloader=test_dataloader,

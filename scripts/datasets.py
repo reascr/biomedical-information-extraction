@@ -137,6 +137,24 @@ def split_datasets(train_data, val_data, test_data):
     return train_data, val_data
 
 
+def split_datasets_RE(train_data, val_data, test_data):
+    '''
+    Splits the training dataset into a new training and validation set.  
+    The validation set is sized based on the test set length.  
+    '''
+    train_size = len(train_data.relation_samples)
+    test_size = len(test_data.relation_samples) 
+    val_size = test_size  
+    train_new_size = train_size - val_size  # remaining size for new training set
+
+    train_subset, val_subset = random_split(train_data.relation_samples, [train_new_size, val_size]) # split the train set into new train and val
+
+    train_data.relation_samples = train_subset
+    val_data.relation_samples = val_subset
+
+    return train_data, val_data
+
+
 ############ NER class and helper functions ################
 
 class NERDataset(AnnotationDataset):
@@ -415,7 +433,7 @@ def create_dataloaders_RE(batch_size, tokenizer, device): # CHECK WHETHER COLLAT
     test_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Dev")  # take dev set as test set (until official test set release)
 
     # split into train and val 
-    train_dataset, val_dataset = split_datasets(train_dataset, val_dataset, test_dataset)
+    train_dataset, val_dataset = split_datasets_RE(train_dataset, val_dataset, test_dataset)
     #print(train_dataset[1])
     
     train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True, collate_fn=collate_fn)

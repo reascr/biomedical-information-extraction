@@ -29,7 +29,7 @@ load_dotenv()  # load the .env file with the wandb key
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 
 # Directory to save the best models (so we can use them for RE)
-MODEL_SAVE_DIR = os.path.join("..", "results", "NER", "best-models") 
+MODEL_SAVE_DIR = os.path.abspath(os.path.join("..", "results", "NER", "best-models")) # USE THE UCLOUD MOUNTED DRIVE
 os.makedirs(MODEL_SAVE_DIR, exist_ok=True)
 
 NUM_LABELS = 27
@@ -68,7 +68,7 @@ for model_name in MODEL_CONFIGS.keys():
     tokenizer_str = MODEL_CONFIGS[model_name]["tokenizer"]
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_str)
 
-    train_dataloader, val_dataloader, test_dataloader = create_dataloaders(BATCH_SIZE,tokenizer, DEVICE)
+    #train_dataloader, val_dataloader, test_dataloader = create_dataloaders(BATCH_SIZE,tokenizer, DEVICE)
     test_micro_f1_scores = []
     test_macro_f1_scores = []
     all_train_losses = []
@@ -83,6 +83,8 @@ for model_name in MODEL_CONFIGS.keys():
 
     #for seed in range(NUM_SEEDS):
     for seed in seeds:
+        set_seed(seed)
+        train_dataloader, val_dataloader, test_dataloader = create_dataloaders(BATCH_SIZE,tokenizer, DEVICE)
         # train and evaluate model
         model, test_micro_f1, test_macro_f1, train_losses, val_losses, train_f1s, val_f1s = train_and_evaluate_NER(
             model_name, seed, train_dataloader, val_dataloader, test_dataloader, LR, WEIGHT_DECAY, NUM_EPOCHS, DROPOUT, NUM_LABELS, DEVICE
@@ -107,7 +109,7 @@ for model_name in MODEL_CONFIGS.keys():
             best_macro_f1 = test_macro_f1
 
         seed_model_path = os.path.join(MODEL_SAVE_DIR, f"{model_name}_{seed}.pt")
-        #torch.save(model.state_dict(), seed_model_path) # outcomment if you want to save the models
+        torch.save(model.state_dict(), seed_model_path) # outcomment if you want to save the models
         # save the best model for this model_name (we need this later)
         best_model_path = os.path.join(MODEL_SAVE_DIR, f"{model_name}_{seed}_best.pt") # because we need to have predictions over all 5 runs for entity level F1 as well
         best_models[model_name] = best_model_path
@@ -315,13 +317,7 @@ PubMedBERT_avg = calculate_averages("PubMedBERT", bert_model_results)
 model_names = ["BiLSTM-CRF", "GLiNER", "BERT", "BioBERT", "PubMedBERT"]
 metrics = ["Macro-precision", "Macro-recall", "Macro-F1", "Micro-precision", "Micro-recall", "Micro-F1"]
 
-results = [
-    BiLSTM_results,
-    GLiNER_results,
-    BERT_avg,
-    BioBERT_avg,
-    PubMedBERT_avg
-]
+results = [BiLSTM_results,GLiNER_results,BERT_avg,BioBERT_avg,PubMedBERT_avg]
 
 pastel_colors = { 
     "BERT": "#D6E8FF",     

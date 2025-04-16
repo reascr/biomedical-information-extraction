@@ -1,7 +1,7 @@
 
-def get_ground_truth_entities(abstract_id):
+def get_entities(abstract_id, data):
     # get entities for that abstract id
-    article_data = ground_truth_data.get(abstract_id, {})
+    article_data = data.get(abstract_id, {})
     entities = article_data.get("entities", [])
     return entities
 
