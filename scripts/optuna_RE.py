@@ -1,11 +1,13 @@
 from config import MODEL_CONFIGS
 from datasets import create_dataloaders_RE
-from utils import train_and_evaluate_RE, set_seed
+from utils import train_and_evaluate_RE_optuna, set_seed
 from transformers import AutoTokenizer
 import optuna
 import json
 import os
 import torch
+import time
+start_time = time.time()
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
@@ -13,9 +15,15 @@ OPTUNA_RESULTS_DIR = os.path.join(script_dir, "..", "results", "RE", "optuna")
 os.makedirs(OPTUNA_RESULTS_DIR, exist_ok=True)
 DATA_DIR = os.path.join(script_dir,"..", "gutbrainie2025")
 
+DRIVE_UCLOUD_DIR_OPTUNA = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "optuna"))
+os.makedirs(DRIVE_UCLOUD_DIR_OPTUNA, exist_ok=True)
+
+print("Saving to:", DRIVE_UCLOUD_DIR_OPTUNA)
+
+
 device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
 num_epochs = 6
-threshold = 0.6
+threshold = 0.5
 special_tokens = ['<ent1>', '</ent1>', '<ent2>', '</ent2>'] # entity markers that will be added to the tokenizers
 results = {}
 
@@ -28,8 +36,9 @@ def objective(trial, model_name):
     weight_decay = trial.suggest_loguniform('weight_decay', 1e-3, 1e-1) 
     batch_size = trial.suggest_categorical('BATCH_SIZE', [16, 32]) # these are categorical values
     # num_epochs = trial.suggest_int('NUM_EPOCHS', 3, 7) # since relation extraction training is time intensive, we'll use 6 epochs with early stopping with patience = 1
-    dropout = trial.suggest_uniform('dropout', 0.1, 0.3) # uniform sampling on linear scale. 
-    max_norm = trial.suggest_uniform('max_norm', 0.5, 2.0)
+    dropout = trial.suggest_float('dropout', 0.1, 0.3) 
+
+    max_norm = trial.suggest_float('max_norm', 0.5, 2.0)
 
     print(f"Trial for {model_name} with parameters:", trial.params)
 
@@ -46,7 +55,7 @@ def objective(trial, model_name):
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders_RE(batch_size, tokenizer, device)
 
     # train and evaluate the model
-    model, test_micro_f1, test_macro_f1, _, _, _, _ , _, _= train_and_evaluate_RE(
+    model, test_micro_f1, test_macro_f1, _, _, _, _ , _, _= train_and_evaluate_RE_optuna(
         model_name=model_name,
         tokenizer_voc_size= tokenizer_voc_size,
         seed=42,
@@ -73,7 +82,7 @@ def objective(trial, model_name):
 for model_name in MODEL_CONFIGS.keys():
     print(f"\nStarting hyperparameter tuning for {model_name}...")
     study = optuna.create_study(direction='maximize') # we want to maximize micro f1 on test set
-    study.optimize(lambda trial: objective(trial, model_name), n_trials=1) # change to 20... or RE 10
+    study.optimize(lambda trial: objective(trial, model_name), n_trials=20) 
 
     print(f"Best hyperparameters for {model_name}: {study.best_params}")
     
@@ -88,6 +97,26 @@ for model_name, model_results in results.items():
     results_file = os.path.join(OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
     with open(results_file, "w") as f:
         json.dump(model_results, f, indent=4)
+    results_file = os.path.join(DRIVE_UCLOUD_DIR_OPTUNA, f"optuna_results_{model_name}.json") # save on server drive
+    with open(results_file, "w") as g:
+        json.dump(model_results, g, indent=4)
+
+
+end_time = time.time()
+total_time = end_time - start_time
+
+# Format time nicely
+mins, secs = divmod(total_time, 60)
+hours, mins = divmod(mins, 60)
+formatted_time = f"Total execution time: {int(hours)}h {int(mins)}m {secs:.2f}s"
+
+# Save to a .txt file
+time_file_path = os.path.join(DRIVE_UCLOUD_DIR_OPTUNA, "execution_time.txt")
+with open(time_file_path, "w") as f:
+    f.write(formatted_time)
+
+print(formatted_time)
+
 
 
 ###### References ###########

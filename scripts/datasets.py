@@ -377,7 +377,6 @@ class REDataset(AnnotationDataset):
             
         #random.shuffle(self.relation_samples)
         #self.relation_samples = self.relation_samples[:100] # for testing purposes
-    
     def __len__(self):
         return len(self.relation_samples)
     
@@ -387,6 +386,8 @@ class REDataset(AnnotationDataset):
             - input_ids
             - attention_mask
             - label (0 or 1) for binary classification
+
+        Uses a dynamic window approach to make sure entities are captured within the 512 token limit.
         """
         sample = self.relation_samples[idx]
         
@@ -400,6 +401,268 @@ class REDataset(AnnotationDataset):
     
         for key in tokenized_text:
             tokenized_text[key] = tokenized_text[key].squeeze(0) # ???
+        return {
+            "input_ids": tokenized_text["input_ids"],
+            "attention_mask": tokenized_text["attention_mask"],
+            "label": torch.tensor(sample["label"], dtype=torch.long)
+        }
+
+
+
+class REDataset_enhanced_negative_sampling_strategy(AnnotationDataset):
+    def __init__(self, root_path, tokenizer, max_length=512, split="Train", quality_filter=['platinum_quality', 'gold_quality', 'silver_quality']):
+        """
+        Creates a relation extraction dataset.
+        Each data point is a concatenation of abstract and title. Entity markers (<ent1> and <ent2>) are inserted to mark the two entities in question.
+        These entity markers have to be added to the tokenizer that is passed to the initialisation of the class.
+        For each article, positive relation candidates are generated based on the ground truth. For this, all possible mention based relations are considered.
+        (A set of tag based relations is later inferred during inference. Here, the entities are not modified except for a special entity marker).
+        Negative samples are generated from other candidate entity pairs (randomly, check later to include easy, medium, and hard examples, especially entities that are the same ones as in the relations).
+        """
+        super().__init__(root_path, tokenizer=tokenizer, split=split, quality_filter=quality_filter)
+        #self.tokenizer = tokenizer # is already initiated by the parent class Annotation Data set
+        self.max_length = max_length
+        self.relation_samples = []
+
+        #counter = 0
+        # concatenate title and abstract because a relation can hold between an entity in the title and one in the abstract
+        for article_id, data in self.samples:
+            #counter += 1
+            title = data['metadata'].get('title', '')
+            abstract = data['metadata'].get('abstract', '')
+            full_text = (title + " " + abstract).strip() 
+            if not full_text:
+                continue
+            
+            # get ground truth entities and all relations 
+            entities = data.get("entities", [])
+            relations = data.get("relations", [])
+
+            # for entities in the abstract, we need to add the length of the title to the indices (since we are concatenating titles and abstracts)
+            offset = len(title) + 1
+
+            reversed_pairs = [] # we need this for sampling of negatives below
+            
+            for rel in relations:
+                subj_entity = {"start_idx": rel["subject_start_idx"], "end_idx": rel["subject_end_idx"], "location": rel["subject_location"]}
+                subj_start_idx, subj_end_idx = get_adjusted_indices(subj_entity, offset) # adjust indices for subject
+    
+                obj_entity = {"start_idx": rel["object_start_idx"], "end_idx": rel["object_end_idx"], "location": rel["object_location"]}
+                obj_start_idx, obj_end_idx = get_adjusted_indices(obj_entity, offset) # adjust indices for object
+
+                
+                reversed_pairs.append((obj_entity, subj_entity)) # reversed pairs
+
+                marked_text = mark_entities(full_text, subj_start_idx, subj_end_idx, obj_start_idx, obj_end_idx)
+                    
+                self.relation_samples.append({
+                    "article_id": article_id,
+                    "text": marked_text,
+                    "label": 1 # positive relation
+                })
+
+            # create negative examples by generating as many negative examples as positives (to balance classes)
+            num_pos = len(relations)
+            num_reversed = int(num_pos*0.25)
+            num_same_tag = int(num_pos*0.25)
+            num_random = num_pos - num_reversed - num_same_tag
+                
+            candidate_pairs = [] # get all possible candidate pairs
+            for i in range(len(entities)):
+                for j in range(len(entities)):
+                    candidate_pairs.append((entities[i], entities[j])) # entities look like this: {'start_idx': 0, 'end_idx': 26, 'location': 'title', 'text_span': 'Lactobacillus fermentum NS9', 'label': 'dietary supplement'}
+            random.shuffle(candidate_pairs)
+            
+            same_tag_pairs = []
+            random_pairs = []
+            
+            for subj, obj in candidate_pairs:
+                # exclude all possible candidate pairs (order matters because we have directional relationships between subj and obj)
+                is_positive = any(subj["text_span"] == r["subject_text_span"] and obj["text_span"] == r["object_text_span"] for r in relations)
+                # exclude all pertubations of positive pairs (we subsample them above)
+                is_reversed = any(obj["text_span"] == r["subject_text_span"] and subj["text_span"] == r["object_text_span"] for r in relations)
+                has_same_tag = any(subj["label"] == r["subject_label"] and obj["label"] == r["object_label"] for r in relations)
+                
+                if not is_positive and not is_reversed:
+                    if has_same_tag:
+                        same_tag_pairs.append((subj,obj))
+                    else:
+                        random_pairs.append((subj,obj))
+
+            # create random subset of the negatives
+            random.shuffle(same_tag_pairs)
+            random.shuffle(random_pairs)
+            random.shuffle(reversed_pairs)
+
+            sampled_reversed = reversed_pairs[:min(num_reversed, len(reversed_pairs))]
+            sampled_same_tag = same_tag_pairs[:min(num_same_tag, len(same_tag_pairs))]
+            sampled_random = random_pairs[:num_pos - len(sampled_reversed) - len(sampled_same_tag)]
+            final_negative_pairs = sampled_reversed + sampled_same_tag + sampled_random
+
+            for subj, obj in final_negative_pairs:
+                    subj_start_idx, subj_end_idx = get_adjusted_indices(subj, offset)
+                    obj_start_idx, obj_end_idx = get_adjusted_indices(obj, offset)
+                    marked_text = mark_entities(full_text, subj_start_idx, subj_end_idx, obj_start_idx, obj_end_idx)
+                    self.relation_samples.append({
+                        "article_id": article_id,
+                        "text": marked_text,
+                        "label": 0
+                    }) # might store type of negative here for further examination
+
+        #random.shuffle(self.relation_samples)
+        #self.relation_samples = self.relation_samples[:100]
+    
+    def __len__(self):
+        return len(self.relation_samples)
+    
+    def __getitem__(self, idx):
+        """
+        Returns a tokenized relation extraction data point:
+            - input_ids
+            - attention_mask
+            - label (0 or 1) for binary classification
+
+        Uses a dynamic window approach to make sure entities are captured within the 512 token limit.
+        """
+        sample = self.relation_samples[idx]
+        
+        tokenized_text = self.tokenizer(
+            sample["text"], 
+            #padding="max_length", 
+            truncation=True, 
+            max_length=self.max_length,
+            return_tensors="pt"
+        )
+    
+        for key in tokenized_text:
+            tokenized_text[key] = tokenized_text[key].squeeze(0) # ???
+        return {
+            "input_ids": tokenized_text["input_ids"],
+            "attention_mask": tokenized_text["attention_mask"],
+            "label": torch.tensor(sample["label"], dtype=torch.long)
+        }
+
+
+
+
+####### ternary RE #############
+
+class REDataset_ternary(AnnotationDataset):
+    def __init__(self, root_path, tokenizer, max_length=512, split="Train", quality_filter=['platinum_quality', 'gold_quality', 'silver_quality']):
+        """
+        Creates a relation extraction dataset.
+        Each data point is a concatenation of abstract and title. Entity markers (<ent1> and <ent2>) are inserted to mark the two entities in question.
+        These entity markers have to be added to the tokenizer that is passed to the initialisation of the class.
+        For each article, positive relation candidates are generated based on the ground truth. For this, all possible mention based relations are considered.
+        (A set of tag based relations is later inferred during inference. Here, the entities are not modified except for a special entity marker).
+        Negative samples are generated from other candidate entity pairs (randomly, check later to include easy, medium, and hard examples, especially entities that are the same ones as in the relations).
+        """
+        super().__init__(root_path, tokenizer=tokenizer, split=split, quality_filter=quality_filter)
+        #self.tokenizer = tokenizer # is already initiated by the parent class Annotation Data set
+        self.max_length = max_length
+        self.relation_samples = []
+
+        #counter = 0
+        
+        # concatenate title and abstract because a relation can hold between an entity in the title and one in the abstract
+        for article_id, data in self.samples:
+            #counter += 1
+            title = data['metadata'].get('title', '')
+            abstract = data['metadata'].get('abstract', '')
+            full_text = (title + " " + abstract).strip() 
+            if not full_text:
+                continue
+            
+            # get ground truth entities and all relations 
+            entities = data.get("entities", [])
+            relations = data.get("relations", [])
+
+            # for entities in the abstract, we need to add the length of the title to the indices (since we are concatenating titles and abstracts)
+            offset = len(title) + 1
+
+            for rel in relations:
+                subj_entity = {"start_idx": rel["subject_start_idx"], "end_idx": rel["subject_end_idx"], "location": rel["subject_location"]}
+                subj_start_idx, subj_end_idx = get_adjusted_indices(subj_entity, offset) # adjust indices for subject
+    
+                obj_entity = {"start_idx": rel["object_start_idx"], "end_idx": rel["object_end_idx"], "location": rel["object_location"]}
+                obj_start_idx, obj_end_idx = get_adjusted_indices(obj_entity, offset) # adjust indices for object
+
+                predicate = rel["predicate"] # relation type
+
+                marked_text = mark_entities(full_text, subj_start_idx, subj_end_idx, obj_start_idx, obj_end_idx)
+                    
+                self.relation_samples.append({
+                    "article_id": article_id,
+                    "text": marked_text,
+                    "label": predicate # e.g. "influence"
+                })
+
+            # create negative examples by generating as many negative examples as positives (to balance classes)
+            num_pos = len(relations)
+
+            candidate_pairs = [] # get all possible candidate pairs
+            for i in range(len(entities)):
+                for j in range(len(entities)):
+                    candidate_pairs.append((entities[i], entities[j])) # entities look like this: {'start_idx': 0, 'end_idx': 26, 'location': 'title', 'text_span': 'Lactobacillus fermentum NS9', 'label': 'dietary supplement'}
+            
+            random.shuffle(candidate_pairs)
+            negatives_added = 0
+            # random sampling of negatives
+            for pair in candidate_pairs:
+                subj, obj = pair
+                # exclude all possible candidate pairs (order matters because we have directional relationships between subj and obj)
+                is_positive = any(subj["text_span"] == r["subject_text_span"] and obj["text_span"] == r["object_text_span"] for r in relations)
+                if not is_positive:
+                    subj_start_idx, subj_end_idx = get_adjusted_indices(subj, offset)
+                    obj_start_idx, obj_end_idx = get_adjusted_indices(obj, offset)
+
+                    marked_text = mark_entities(full_text, subj_start_idx, subj_end_idx, obj_start_idx, obj_end_idx)
+                    
+                    self.relation_samples.append({
+                        "article_id": article_id,
+                        "text": marked_text,
+                        "label": "no relation" # no relation
+                    })
+                    
+                    negatives_added += 1
+                    if negatives_added >= num_pos:
+                        break # we want a balanced data set, stop if number of positives is reached
+
+        all_labels = {s["label"] for s in self.relation_samples} # get a set of all possible labels, should be 17+1 (O label)
+        # get no relation as 0 index
+        other_labels = sorted(all_labels - {"no relation"}) 
+        #self.label2id = {"no relation": 0}  
+        #self.label2id.update({label: index + 1 for index, label in enumerate(other_labels)})  
+        self.label2id = {label: idx for idx, label in enumerate(other_labels)}
+        self.label2id["no relation"] = len(other_labels)
+        self.id2label = {idx: lbl for lbl, idx in self.label2id.items()}
+        for sample in self.relation_samples:
+            sample["label"] = self.label2id[sample["label"]] # bring to numerical form
+            
+        #random.shuffle(self.relation_samples)
+
+    def __len__(self):
+        return len(self.relation_samples)
+    
+    def __getitem__(self, idx):
+        """
+        Returns a tokenized relation extraction data point:
+            - input_ids
+            - attention_mask
+            - label for multiclass classification
+        """
+        sample = self.relation_samples[idx]
+        
+        tokenized_text = self.tokenizer(
+            sample["text"], 
+            #padding="max_length", 
+            truncation=True, 
+            max_length=self.max_length,
+            return_tensors="pt"
+        )
+    
+        for key in tokenized_text:
+            tokenized_text[key] = tokenized_text[key].squeeze(0)
         return {
             "input_ids": tokenized_text["input_ids"],
             "attention_mask": tokenized_text["attention_mask"],
@@ -427,21 +690,6 @@ def collate_fn(batch):
 
 
 
-def create_dataloaders_RE(batch_size, tokenizer, device): # CHECK WHETHER COLLATE CAN BE USED LIKE THIS
-    train_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Train")
-    val_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Train")  # dummy val data set
-    test_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Dev")  # take dev set as test set (until official test set release)
-
-    # split into train and val 
-    train_dataset, val_dataset = split_datasets_RE(train_dataset, val_dataset, test_dataset)
-    #print(train_dataset[1])
-    
-    train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True, collate_fn=collate_fn)
-    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False, collate_fn=collate_fn)
-    test_dataloader = DataLoader(test_dataset, batch_size, shuffle=False, collate_fn=collate_fn)
-    
-    return train_dataloader, val_dataloader, test_dataloader
-
 def create_dataloaders(batch_size, tokenizer, device):
     train_dataset = NERDataset(DATA_DIR, tokenizer=tokenizer, split="Train")
     val_dataset = NERDataset(DATA_DIR, tokenizer=tokenizer, split="Train")  # dummy val data set
@@ -456,3 +704,37 @@ def create_dataloaders(batch_size, tokenizer, device):
     test_dataloader = DataLoader(test_dataset, batch_size, shuffle=False)
     
     return train_dataloader, val_dataloader, test_dataloader
+
+
+def create_dataloaders_RE(batch_size, tokenizer, device): 
+    train_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Train")
+    val_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Train")  # dummy val data set
+    test_dataset = REDataset(DATA_DIR, tokenizer=tokenizer, split="Dev")  # take dev set as test set (until official test set release)
+
+    # split into train and val 
+    train_dataset, val_dataset = split_datasets_RE(train_dataset, val_dataset, test_dataset)
+    #print(train_dataset[1])
+    
+    train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True, collate_fn=collate_fn)
+    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_dataset, batch_size, shuffle=False, collate_fn=collate_fn)
+    
+    return train_dataloader, val_dataloader, test_dataloader
+
+
+def create_dataloaders_RE_ternary(batch_size, tokenizer, device): 
+    train_dataset = REDataset_ternary(DATA_DIR, tokenizer=tokenizer, split="Train")
+    val_dataset = REDataset_ternary(DATA_DIR, tokenizer=tokenizer, split="Train")  # dummy val data set
+    test_dataset = REDataset_ternary(DATA_DIR, tokenizer=tokenizer, split="Dev")  # take dev set as test set (until official test set release)
+
+    # split into train and val 
+    train_dataset, val_dataset = split_datasets_RE(train_dataset, val_dataset, test_dataset)
+    #print(train_dataset[1])
+
+    num_labels = len(train_dataset.label2id)
+    index_to_label = train_dataset.id2label   
+    train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True, collate_fn=collate_fn)
+    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False, collate_fn=collate_fn)
+    test_dataloader = DataLoader(test_dataset, batch_size, shuffle=False, collate_fn=collate_fn)
+    
+    return train_dataloader, val_dataloader, test_dataloader, num_labels, index_to_label

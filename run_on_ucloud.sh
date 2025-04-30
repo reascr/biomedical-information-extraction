@@ -14,9 +14,7 @@ SSH_KEY_PATH="~/.ssh/id_rsa"
 echo "Copying from local: $LOCAL_PROJECT_DIR to remote: $SERVER_PROJECT_DIR"
 scp -P $SSH_PORT -i "$SSH_KEY_PATH" -r "$LOCAL_PROJECT_DIR" ucloud@ssh.cloud.sdu.dk:"$SERVER_PROJECT_DIR"
 
-# SSH into the server and run commands
-## ssh "-i $SSH_KEY_PATH" ucloud@$SERVER_IP << 'EOF'
-ssh -i "$SSH_KEY_PATH" -p $SSH_PORT ucloud@ssh.cloud.sdu.dk << 'EOF'
+ssh -i "$SSH_KEY_PATH" -p $SSH_PORT ucloud@ssh.cloud.sdu.dk << 'EOF' # SSH into the server and run commands
 
     # Install Python 3.8 (server has python version 3.12.3. We need to downgrade to python 3.10.12)
     export DEBIAN_FRONTEND=noninteractive  # Disable interactive prompts
@@ -37,13 +35,8 @@ ssh -i "$SSH_KEY_PATH" -p $SSH_PORT ucloud@ssh.cloud.sdu.dk << 'EOF'
 
     # Run the script in the background using nohup (write output to both output.log and terminal)
     echo "Running the script in the background..."
-    nohup python3 scripts/train_evaluate_NER_BERT_models.py 2>&1 | tee output.log &
-    echo "Job started in the background."
-
+    # nohup python3 scripts/optuna_NER.py 2>&1 | tee output.log &
+    echo "Job started in the background." # If not using this script to connect to the server, make sure to activate the venv before running the code
 
 EOF
 
-echo "Job completed successfully!"
-# Download data
-echo "Downloading results."
-scp -P $SSH_PORT -i "$SSH_KEY_PATH" -r ucloud@ssh.cloud.sdu.dk:"$RESULTS_DIR_SERVER" "$LOCAL_PROJECT_DIR" # download training results
