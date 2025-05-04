@@ -1,4 +1,5 @@
-# Biomedical Information Extraction - Investigating the Relationship Between Microbiota and Neurological Disorders in the Gut-Brain Axis
+# Biomedical Information Extraction - 
+## Investigating the Relationship Between Microbiota and Neurological Disorders in the Gut-Brain Axis
 
 This repository contains code and data developed for my masters thesis in IT and Cognition at the University of Copenhagen, building a Named Entity Recognition (NER) and Relation Extraction (RE) pipeline for biomedical abstracts using the GutBrainIE2025 dataset (https://hereditary.dei.unipd.it/challenges/gutbrainie/2025/). 
 
