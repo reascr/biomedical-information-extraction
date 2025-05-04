@@ -95,7 +95,7 @@ NUM_EPOCHS = 6
 THRESHOLD = 0.5 # threshold for predicting positive class
 special_tokens = ['<ent1>', '</ent1>', '<ent2>', '</ent2>'] # entity markers that will be added to the tokenizers
 
-'''
+
 best_models = {}
 
 results = []
@@ -217,8 +217,8 @@ for model_name in MODEL_CONFIGS.keys():
 
 results_df = pd.DataFrame(results)
 results_json_path = os.path.join(DRIVE_RESULTS_DIR, "RE_training_results.json")
-results_df.to_json(results_json_path, orient="records", indent=4)'''
-'''
+results_df.to_json(results_json_path, orient="records", indent=4)
+
 
 # Plot the average micro and macro F1 for all three models 
 pastel_colors = { 
@@ -287,7 +287,7 @@ plt.tight_layout()
 plt.savefig(os.path.join(DRIVE_RESULTS_DIR, "f1_3_models_macro.png"), dpi=600)
 plt.show()
 
-'''
+
 ########### THRESHOLD TUNING ##############
 
 

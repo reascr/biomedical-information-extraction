@@ -43,7 +43,7 @@ def objective(trial, model_name):
     train_dataloader, val_dataloader, test_dataloader = create_dataloaders(batch_size, tokenizer, device)
 
     # train and evaluate the model
-    model, test_micro_f1, test_macro_f1, _, _, _, _ = train_and_evaluate_NER_optuna(
+    best_val_f1_micro = train_and_evaluate_NER_optuna(
         model_name=model_name,
         seed=42, # to ensure the differences in the scores are due to hyperparamaters and to ensure reproducibility
         train_dataloader=train_dataloader,
@@ -58,7 +58,7 @@ def objective(trial, model_name):
         max_norm=max_norm, track_wandb = False
     )
 
-    return test_micro_f1 # optimize for test micro f1 
+    return best_val_f1_micro # optimize for validation micro f1 
 
 # run Optuna for each model and save results
 for model_name in MODEL_CONFIGS.keys():

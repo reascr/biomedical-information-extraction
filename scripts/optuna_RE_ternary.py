@@ -1,6 +1,6 @@
 from config import MODEL_CONFIGS
-from datasets import create_dataloaders_RE
-from utils import train_and_evaluate_RE_optuna, set_seed
+from datasets import create_dataloaders_RE_ternary
+from utils import train_and_evaluate_RE_ternary_optuna, set_seed
 from transformers import AutoTokenizer
 import optuna
 import json
@@ -11,11 +11,11 @@ start_time = time.time()
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-OPTUNA_RESULTS_DIR = os.path.join(script_dir, "..", "results", "RE", "optuna")
+OPTUNA_RESULTS_DIR = os.path.join(script_dir, "..", "results", "RE-ternary", "optuna")
 os.makedirs(OPTUNA_RESULTS_DIR, exist_ok=True)
 DATA_DIR = os.path.join(script_dir,"..", "gutbrainie2025")
 
-DRIVE_UCLOUD_DIR_OPTUNA = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "optuna"))
+DRIVE_UCLOUD_DIR_OPTUNA = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
 os.makedirs(DRIVE_UCLOUD_DIR_OPTUNA, exist_ok=True)
 
 print("Saving to:", DRIVE_UCLOUD_DIR_OPTUNA)
@@ -52,10 +52,10 @@ def objective(trial, model_name):
     ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id = last_four_token_ids
 
     # create data loaders for the model
-    train_dataloader, val_dataloader, test_dataloader = create_dataloaders_RE(batch_size, tokenizer, device)
+    train_dataloader, val_dataloader, test_dataloader, num_labels, _ = create_dataloaders_RE_ternary(batch_size, tokenizer, device)
 
     # train and evaluate the model
-    best_val_f1_micro = train_and_evaluate_RE_optuna(
+    best_val_micro= train_and_evaluate_RE_ternary_optuna(
         model_name=model_name,
         tokenizer_voc_size= tokenizer_voc_size,
         seed=42,
@@ -72,11 +72,11 @@ def objective(trial, model_name):
         ent1_end_id = ent1_end_id, 
         ent2_start_id = ent2_start_id, 
         ent2_end_id = ent2_end_id, 
-        threshold=threshold,
+        num_labels=num_labels,
         track_wandb = False
     )
 
-    return best_val_f1_micro # optimize for validation micro f1 
+    return best_val_micro # optimize for best micro F1 on the validation set
 
 # run Optuna for each model and save results
 for model_name in MODEL_CONFIGS.keys():
@@ -116,10 +116,3 @@ with open(time_file_path, "w") as f:
     f.write(formatted_time)
 
 print(formatted_time)
-
-
-
-###### References ###########
-
-# Gu, Y., Tinn, R., Cheng, H., Lucas, M., Usuyama, N., Liu, X., ... & Poon, H. 2021. Domain-specific language model pretraining for biomedical natural language processing. ACM Transactions on Computing for Healthcare (HEALTH), 3(1), 1-23.
-# Takuya Akiba, Shotaro Sano, Toshihiko Yanase, Takeru Ohta, and Masanori Koyama. 2019. Optuna: A Next-generation Hyperparameter Optimization Framework. In KDD.

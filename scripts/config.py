@@ -1,20 +1,4 @@
-'''MODEL_CONFIGS = {
-    "PubMedBERT": {
-        "model_name": "NeuML/pubmedbert-base-embeddings",
-        "tokenizer": "NeuML/pubmedbert-base-embeddings"
-    },
-    
-    "BERT": {
-        "model_name": "bert-base-uncased",
-        "tokenizer": "bert-base-uncased"
-    },
-    "BioBERT": {
-        "model_name": "dmis-lab/biobert-v1.1",
-        "tokenizer": "dmis-lab/biobert-v1.1"
-    }
-}
-'''
-'''
+
 
 MODEL_CONFIGS = {
     "PubMedBERT": {
@@ -31,34 +15,15 @@ MODEL_CONFIGS = {
         "model_name": "dmis-lab/biobert-v1.1", # cased
         "tokenizer": "dmis-lab/biobert-v1.1"
     }
-}'''
+}
 
+'''
 MODEL_CONFIGS = {
     "PubMedBERT": {
         "model_name": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", # uncased, no cased version available
         "tokenizer": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext"
     },}
-
-
-'''MODEL_CONFIGS = {
-    "BERT": {
-        "model_name": "google-bert/bert-base-cased", # cased
-        "tokenizer": "google-bert/bert-base-cased"
-    }
-}'''
-
 '''
-MODEL_CONFIGS = {
-    "PubMedBERT-GENE": {
-        "model_name": "pruas/BENT-PubMedBERT-NER-Gene", # uncased, no cased version available
-        "tokenizer": "pruas/BENT-PubMedBERT-NER-Gene"
-    },
-    "PubMedBERT-CHEMICAL": {
-        "model_name": "pruas/BENT-PubMedBERT-NER-Chemical", # uncased, no cased version available
-        "tokenizer": "pruas/BENT-PubMedBERT-NER-Chemical"
-    }}
-'''
-
 
 label_map = {
     0: "B-DDF", 1: "B-anatomical location", 2: "B-animal", 3: "B-bacteria", 4: "B-biomedical technique",
@@ -69,6 +34,9 @@ label_map = {
     24: "I-microbiome", 25: "I-statistical technique", 26: "O"
 }
 
+
 label_map_RE = {0: 'administered', 1: 'affect', 2: 'change abundance', 3: 'change effect', 4: 'change expression', 5: 'compared to', 6: 'impact', 7: 'influence', 8: 'interact', 9: 'is a', 10: 'is linked to', 11: 'located in', 12: 'part of', 13: 'produced by', 14: 'strike', 15: 'target', 16: 'used by', 17: 'no relation'}
+
+
 #seeds = [42,1234,29,7,123]
 seeds = [42] # test

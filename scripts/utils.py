@@ -321,6 +321,7 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
     plt.savefig(save_path , dpi=600)
     if track_wandb:
         wandb.log({"confusion_matrix": wandb.Image(save_path)})
+        wandb.finish()
     plt.show()
     return model, test_micro_f1, test_macro_f1, train_losses, val_losses, train_f1s, val_f1s
 
@@ -331,8 +332,6 @@ def train_and_evaluate_NER_optuna(model_name, seed, train_dataloader, val_datalo
     model.config.hidden_dropout_prob = dropout
     model.config.attention_probs_dropout_prob = dropout
     model.to(device)
-
-    best_model_state = None # track best model state in case of overfitting
 
     # weighted loss, ignore padding tokens for loss computation
     #loss_fct = nn.CrossEntropyLoss(weight=class_weights_tensor, ignore_index=-100)
@@ -353,6 +352,8 @@ def train_and_evaluate_NER_optuna(model_name, seed, train_dataloader, val_datalo
     val_losses = []
     train_f1s = []
     val_f1s = []
+
+    best_val_f1_micro = 0.0
 
     for epoch in range(num_epochs):
         model.train()
@@ -415,6 +416,9 @@ def train_and_evaluate_NER_optuna(model_name, seed, train_dataloader, val_datalo
         print(f"Training Loss: {train_losses[-1]:.4f}, Training F1: {train_f1s[-1]:.4f}")
         print(f"Validation Loss: {val_losses[-1]:.4f}, Validation F1: {val_f1s[-1]:.4f}")
 
+        if val_micro_f1 > best_val_f1_micro:
+            best_val_f1_micro = val_micro_f1
+
         if track_wandb:
             wandb.log({
                 "epoch": epoch + 1,
@@ -428,36 +432,13 @@ def train_and_evaluate_NER_optuna(model_name, seed, train_dataloader, val_datalo
         if val_losses[-1] < best_val_loss:
             best_val_loss = val_losses[-1]
             patience_counter = 0
-            best_model_state = model.state_dict()  # save the best model
         else:
             patience_counter += 1
             if patience_counter >= patience:
                 print("Early stopping triggered")
                 break
 
-    model.load_state_dict(best_model_state) # update model with best model state in case of overfittings
-    model.eval()
-    total_test_labels = []
-    total_test_preds = []
-    
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader, desc="Test Evaluation", leave=False):
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['labels'].to(device)
-    
-            outputs = model(input_ids, attention_mask=attention_mask, labels=labels)
-            logits = outputs.logits
-    
-            valid_indices = labels != -100  # exclude padding tokens
-            total_test_labels.extend(labels[valid_indices].cpu().numpy())
-            total_test_preds.extend(torch.argmax(logits, dim=2)[valid_indices].cpu().numpy())
-    
-    # calculate micro and macro F1 scores (overall)
-    test_micro_f1, test_macro_f1 = compute_f1(total_test_labels, total_test_preds)
-    print(f"Test micro F1: {test_micro_f1}, Test macro F1: {test_macro_f1}")
-
-    return model, test_micro_f1, test_macro_f1, train_losses, val_losses, train_f1s, val_f1s
+    return best_val_f1_micro
 
 
 ############## RE Training ###################
@@ -647,8 +628,6 @@ def train_and_evaluate_RE_optuna(model_name, tokenizer_voc_size, seed, train_dat
     model = AutoModel.from_pretrained(model_str)
     model.resize_token_embeddings(tokenizer_voc_size)  # adjust embeddings of the model for special tokens
 
-    best_model_state = None # track best model state in case of overfitting
-
     hidden_size = model.config.hidden_size
     
     model = RelationClassifier_CLS_ent1_ent2_avg_pooled(model, hidden_size, dropout, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id).to(device)
@@ -670,6 +649,8 @@ def train_and_evaluate_RE_optuna(model_name, tokenizer_voc_size, seed, train_dat
 
     global_step = 0
     global_step_val = 0
+
+    best_val_micro_f1 = 0.0
     
     for epoch in range(num_epochs):
         model.train()
@@ -749,6 +730,9 @@ def train_and_evaluate_RE_optuna(model_name, tokenizer_voc_size, seed, train_dat
         val_f1s_micro.append(val_f1_micro)
         val_f1s_macro.append(val_f1_macro)
 
+        if val_f1_micro > best_val_micro_f1:
+            best_val_micro_f1 = val_f1_micro 
+
         if track_wandb:
             wandb.log({
             "step": global_step_val,
@@ -765,46 +749,16 @@ def train_and_evaluate_RE_optuna(model_name, tokenizer_voc_size, seed, train_dat
         if val_losses[-1] < best_val_loss:
             best_val_loss = val_losses[-1]
             patience_counter = 0
-            best_model_state = model.state_dict()
         else:
             patience_counter += 1
             if patience_counter >= patience:
                 print("Stopping early, no improvement in decreasing loss!")
                 break
 
-    if best_model_state is not None:
-        model.load_state_dict(best_model_state)
-    else:
-        print("Loss never decreased.")
-    model.eval() # set to evaluation mode
-
-    # evalzte on test set
-    all_test_labels, all_test_preds = [], []
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader, desc="Test Evaluation", leave=False):
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['label'].to(device).float()
-
-            logits = model(input_ids, attention_mask)
-            all_test_labels.extend(labels.cpu().numpy())
-            all_test_preds.extend(torch.sigmoid(logits).cpu().numpy() > threshold)
-
-    test_f1_micro = f1_score(all_test_labels, all_test_preds, average='micro')
-    test_f1_macro = f1_score(all_test_labels, all_test_preds, average='macro')
-
-    print(f"Test micro f1: {test_f1_micro:.4f}")
-    print(f"Test macro f1: {test_f1_macro:.4f}")
-
     if track_wandb:
-        wandb.log({
-            "test_f1_micro": test_f1_micro,
-            "test_f1_macro": test_f1_macro,
-        })
-
         wandb.finish()
 
-    return model, test_f1_micro, test_f1_macro, train_losses, val_losses, train_f1s_micro, train_f1s_macro, val_f1s_micro, val_f1s_macro
+    return best_val_micro_f1
 
 
 ####### TERNARY RE
@@ -1031,7 +985,7 @@ def train_and_evaluate_RE_ternary(model_name, tokenizer_voc_size, seed, train_da
     return model, test_f1_micro, test_f1_macro, train_losses, val_losses, train_f1s_micro, train_f1s_macro, val_f1s_micro, val_f1s_macro
 
 
-def train_and_evaluate_RE_ternary_optuna(model_name, tokenizer_voc_size, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, device, max_norm, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id, threshold,track_wandb=True):
+def train_and_evaluate_RE_ternary_optuna(model_name, tokenizer_voc_size, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, device, max_norm, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id, num_labels ,track_wandb=False):
     """
     Trains and evaluates a relation classification model. This can be used for an optuna study so best model state etc do not have to be specified and no models get saved.
     """
@@ -1041,11 +995,9 @@ def train_and_evaluate_RE_ternary_optuna(model_name, tokenizer_voc_size, seed, t
     model = AutoModel.from_pretrained(model_str)
     model.resize_token_embeddings(tokenizer_voc_size)  # adjust embeddings of the model for special tokens
 
-    best_model_state = None # track best model state in case of overfitting
-
     hidden_size = model.config.hidden_size
     
-    model = RelationClassifier_ternary_ent1_ent2_average_pooled(model, hidden_size, dropout, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id).to(device)
+    model = RelationClassifier_ternary_ent1_ent2_average_pooled(model, hidden_size, dropout, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id, num_labels).to(device)
     ce_loss = nn.CrossEntropyLoss()
     
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -1065,6 +1017,8 @@ def train_and_evaluate_RE_ternary_optuna(model_name, tokenizer_voc_size, seed, t
     global_step = 0
     global_step_val = 0
     
+    best_val_f1_micro = 0.0
+
     for epoch in range(num_epochs):
         model.train()
         total_train_loss = 0
@@ -1155,50 +1109,23 @@ def train_and_evaluate_RE_ternary_optuna(model_name, tokenizer_voc_size, seed, t
         print(f"Training Loss: {train_losses[-1]:.3f}, Train F1 macro: {train_f1s_macro[-1]:.3f},Train F1 micro: {train_f1s_micro[-1]:.3f} ")
         print(f"Validation Loss: {val_losses[-1]:.3f}, Val F1 macro: {val_f1s_macro[-1]:.3f}, Val F1 micro: {val_f1s_micro[-1]:.3f} ")
 
+        if val_f1_micro > best_val_f1_micro:
+            best_val_f1_micro = val_f1_micro
+
         # early stopping should be triggered if loss is not decreasing
         if val_losses[-1] < best_val_loss:
             best_val_loss = val_losses[-1]
             patience_counter = 0
-            best_model_state = model.state_dict()
         else:
             patience_counter += 1
             if patience_counter >= patience:
                 print("Stopping early, no improvement in decreasing loss!")
                 break
-
-    if best_model_state is not None:
-        model.load_state_dict(best_model_state)
-    else:
-        print("Loss never decreased.")
-    model.eval() # set to evaluation mode
-
-    # evalzte on test set
-    all_test_labels, all_test_preds = [], []
-    with torch.no_grad():
-        for batch in tqdm(test_dataloader, desc="Test Evaluation", leave=False):
-            input_ids = batch['input_ids'].to(device)
-            attention_mask = batch['attention_mask'].to(device)
-            labels = batch['label'].to(device).long()
-
-            logits = model(input_ids, attention_mask)
-            all_test_labels.extend(labels.cpu().numpy())
-            all_test_preds.extend(torch.argmax(logits, dim=1).cpu().numpy())
-
-    test_f1_micro = f1_score(all_test_labels, all_test_preds, average='micro')
-    test_f1_macro = f1_score(all_test_labels, all_test_preds, average='macro')
-
-    print(f"Test micro f1: {test_f1_micro:.4f}")
-    print(f"Test macro f1: {test_f1_macro:.4f}")
-
-    if track_wandb:
-        wandb.log({
-            "test_f1_micro": test_f1_micro,
-            "test_f1_macro": test_f1_macro,
-        })
-
+    if track_wandb: 
         wandb.finish()
 
-    return model, test_f1_micro, test_f1_macro, train_losses, val_losses, train_f1s_micro, train_f1s_macro, val_f1s_micro, val_f1s_macro
+
+    return best_val_f1_micro
 ###### References ###########
 
 # Gu, Y., Tinn, R., Cheng, H., Lucas, M., Usuyama, N., Liu, X., ... & Poon, H. 2021. Domain-specific language model pretraining for biomedical natural language processing. ACM Transactions on Computing for Healthcare (HEALTH), 3(1), 1-23.
