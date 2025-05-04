@@ -4,6 +4,7 @@ This repository contains code and data developed for my masters thesis in IT and
 
 #### Repository Structure
 
+```
 .
 ├── notebooks
 │   ├── BiLSTM_CRF_baseline.ipynb
@@ -26,7 +27,7 @@ This repository contains code and data developed for my masters thesis in IT and
 │   ├── train_evaluate_RE_BERT_models.py
 │   ├── train_evaluate_ternary_RE_BERT_models.py
 │   └── utils.py
-
+```
 
 #### Usage 
 To fine tune the models, run optuna_NER.py, optuna_RE.py (for binary classification RE), and optuna_RE_ternary.py (for multiclass RE).
