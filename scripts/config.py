@@ -1,5 +1,3 @@
-
-
 MODEL_CONFIGS = {
     "PubMedBERT": {
         "model_name": "microsoft/BiomedNLP-BiomedBERT-base-uncased-abstract-fulltext", # uncased, no cased version available
@@ -38,5 +36,5 @@ label_map = {
 label_map_RE = {0: 'administered', 1: 'affect', 2: 'change abundance', 3: 'change effect', 4: 'change expression', 5: 'compared to', 6: 'impact', 7: 'influence', 8: 'interact', 9: 'is a', 10: 'is linked to', 11: 'located in', 12: 'part of', 13: 'produced by', 14: 'strike', 15: 'target', 16: 'used by', 17: 'no relation'}
 
 
-#seeds = [42,1234,29,7,123]
-seeds = [42] # test
+seeds = [42,1234,29,7,123]
+# seeds = [42] # test

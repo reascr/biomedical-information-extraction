@@ -2,8 +2,7 @@ from config import MODEL_CONFIGS, label_map, seeds
 from datasets import create_dataloaders_RE_ternary, get_adjusted_indices, mark_entities
 from models import RelationClassifier_CLS_ent1_ent2_avg_pooled, RelationClassifier_CLSOnly, RelationClassifier_ent1_ent2_start_token, RelationClassifier_ent1_ent2_average_pooled, RelationClassifier_ternary_ent1_ent2_average_pooled
 from utils import set_seed
-from utils import plot_train_val_metrics, train_and_evaluate_RE, calculate_averages, train_and_evaluate_RE_ternary
-from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve
+from utils import plot_train_val_metrics, train_and_evaluate_RE_ternary
 from get_predictions_RE import get_entities, generate_candidate_pairs
 from evaluation_gutbrainie2025 import eval_submission_6_3_ternary_tag_RE, eval_submission_6_4_ternary_mention_RE, GROUND_TRUTH_PATH
 from dotenv import load_dotenv
@@ -14,7 +13,6 @@ import wandb
 from tqdm import tqdm
 import pandas as pd
 import numpy as np
-import matplotlib.pyplot as plt
 
 from transformers import AutoTokenizer, AutoModel
 INDEX_TO_LABEL = None # stores the index to predicate mapping
@@ -29,7 +27,7 @@ print(f"File path: {os.path.abspath(OPTUNA_RESULTS_DIR)}")
 DATA_DIR = os.path.join(script_dir,"..", "gutbrainie2025")
 
 NER_PREDICTIONS_DIR = os.path.join(script_dir,"..", "results", "NER", "BERT-models", "predictions")
-RE_PREDICTIONS_DIR = os.path.join(script_dir,"..", "results", "RE", "BERT-models", "predictions") 
+RE_PREDICTIONS_DIR = os.path.join(script_dir,"..", "results", "RE-ternary", "BERT-models", "predictions") 
 os.makedirs(RE_PREDICTIONS_DIR, exist_ok=True)
 
 # directory of the NER models we can use in the pipeline
@@ -43,7 +41,7 @@ DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..",
 DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "predictions")) # save on ucloud drive
 os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
 #DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
-DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "optuna"))
+DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
 DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models")) 
 os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
 
@@ -151,6 +149,8 @@ for model_name in MODEL_CONFIGS.keys():
             best_micro_f1 = test_micro_f1
             best_model_state = model.state_dict()
             best_model_seed = seed
+        if test_macro_f1 > best_macro_f1:
+            best_macro_f1 = test_macro_f1
 
         seed_model_path = os.path.join(DRIVE_MODEL_SAVE_DIR, f"{model_name}_{seed}.pt") 
         torch.save(model.state_dict(), seed_model_path) # saves all models 
