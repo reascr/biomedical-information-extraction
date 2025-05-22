@@ -124,7 +124,7 @@ for model_name in MODEL_CONFIGS.keys():
         "max_norm": MAX_NORM
         },
         name=f"{model_name}_seed{seed}_{THRESHOLD}",
-        group=model_name,  # Groups all runs for a given model together
+        group=model_name,  # groups all runs for a given model together
         tags=[model_name, f"seed-{seed}"])
         config = wandb.config
 
@@ -252,11 +252,8 @@ plt.savefig(os.path.join(RESULTS_DIR, "f1_3_models_macro.png"), dpi=600)
 plt.show()
 
 
-########### THRESHOLD TUNING ##############
-
-
 ########### EVALUATION #####################
-THRESHOLD_INFERENCE = 0.5 # Next: apply threshold tuning
+THRESHOLD_INFERENCE = 0.5 
 use_ground_truth = True # uses ground truth NER annotations in case ground truth is set to True, otherwise uses NER predictions
 
 with open(os.path.join(DATA_DIR, "Annotations/Dev/json_format/dev.json"), "r")as f:
@@ -265,18 +262,14 @@ with open(os.path.join(DATA_DIR, "Annotations/Dev/json_format/dev.json"), "r")as
 PRED_DIR = os.path.join(RESULTS_DIR,"predictions/")
 os.makedirs(PRED_DIR, exist_ok=True)
 
-### Get final metrics for all models and all seeds and then averaged over seed (but also max values) ###################
+### get final metrics for all models and all seeds and then averaged over seed (but also max values) ###################
 for model_name in MODEL_CONFIGS.keys():
     tokenizer_str = MODEL_CONFIGS[model_name]["tokenizer"]
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_str)
     tokenizer.add_tokens(special_tokens) 
     tokenizer_voc_size = len(tokenizer)
-    #vocab = tokenizer.get_vocab()
     model_name_full = MODEL_CONFIGS[model_name]["model_name"]
 
-
-    #last_four_token_ids = sorted(vocab.values())[-4:] # extract the last four token ids (=entity markers)
-    #ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id = last_four_token_ids
     ent1_start_id = tokenizer.convert_tokens_to_ids("<ent1>")
     ent1_end_id   = tokenizer.convert_tokens_to_ids("</ent1>")
     ent2_start_id = tokenizer.convert_tokens_to_ids("<ent2>")
@@ -415,8 +408,6 @@ with open(best_bert_scores_path, "w") as json_file:
 with open(all_bert_scores_path, "w") as json_file:
     json.dump(bert_model_results, json_file, indent=4) # all results per seed
 
-
-# Plot all metrics when I trained the baseline...
 
 
 

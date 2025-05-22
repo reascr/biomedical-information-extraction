@@ -73,7 +73,7 @@ def predict_entities(text, location, model, tokenizer, device, label_map):
         outputs = model(input_ids_tensor, attention_mask=attention_mask_tensor)
     logits = outputs.logits
     # get predicted label for each token
-    predictions = torch.argmax(logits, dim=2).squeeze().tolist() # Also, take into account that we have to run predictions over 5 random seeds!!!
+    predictions = torch.argmax(logits, dim=2).squeeze().tolist() 
     input_ids = tokens["input_ids"].squeeze().tolist()
     entities = extract_entities(text, input_ids, predictions, offset_mapping, label_map, location) # extract the entities
     return entities

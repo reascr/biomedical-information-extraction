@@ -55,21 +55,18 @@ for model_name in MODEL_CONFIGS.keys():
         with open(file_path, "r") as f:
             data = json.load(f)
     except:
-        file_path = os.path.join(DRIVE_OPTUNA_RESULTS_DIR, f"optuna_results_PubMedBERT.json") # for PubMedBERT-GENE use the hyperparameters for PubMedBERT
+        file_path = os.path.join(DRIVE_OPTUNA_RESULTS_DIR, f"optuna_results_PubMedBERT.json") # for PubMedBERT-GENE use the hyperparameters for PubMedBERT (if you want to use another PubMedBERT variant)
         with open(file_path, "r") as f:
             data = json.load(f)
 
-    #best_params = data[model_name]["best_params"] # get the best paramaters from the optuna study
+    # get the best paramaters from the optuna study
     best_params = data["best_params"] 
     BATCH_SIZE = best_params["BATCH_SIZE"]
     NUM_EPOCHS = best_params["NUM_EPOCHS"]
-    #LR = best_params["LR"]
-    LR = 1e-5
+    LR = best_params["LR"]
     WEIGHT_DECAY = best_params["weight_decay"]
     DROPOUT = best_params["dropout"]
     MAX_NORM = best_params["max_norm"]
-    #print(model_name, MAX_NORM) # check whether correct Optuna was used here
-    #continue
 
     tokenizer_str = MODEL_CONFIGS[model_name]["tokenizer"]
     tokenizer = AutoTokenizer.from_pretrained(tokenizer_str)
@@ -286,7 +283,7 @@ bert_model_results = {
     "PubMedBERT": []
 }
 
-# To save the best scores from the predictions
+# save the best scores from the predictions
 best_bert_scores = {
     "BERT": {"precision": 0, "recall": 0, "f1": 0, "micro_precision": 0, "micro_recall": 0, "micro_f1": 0},
     "BioBERT": {"precision": 0, "recall": 0, "f1": 0, "micro_precision": 0, "micro_recall": 0, "micro_f1": 0},

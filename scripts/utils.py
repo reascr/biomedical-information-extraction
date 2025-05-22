@@ -20,7 +20,6 @@ DRIVE_PLOT_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", ".."
 DRIVE_PLOT_DIR_RE = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "plots"))
 os.makedirs(DRIVE_PLOT_DIR_RE, exist_ok=True)
 
-############# Task independent functions ############
 
 DRIVE_RESULTS_DIR_NER = os.path.join("..", "results", "NER", "BERT-models") # specify your result directory. All plots will be saved here
 os.makedirs(DRIVE_RESULTS_DIR_NER, exist_ok=True)
@@ -90,8 +89,6 @@ def calculate_averages(model_name, bert_model_results):
     return [avg_precision, avg_recall, avg_f1, avg_micro_precision, avg_micro_recall, avg_micro_f1]
 
 def compute_f1(labels, preds):
-    #print(labels[0])
-    #print(preds[0])
     labels = np.array(labels).flatten()
     preds = np.array(preds).flatten()
     
@@ -129,15 +126,13 @@ def compute_per_class_f1(labels, preds, label_map):
 
 def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, test_dataloader, lr, weight_decay, num_epochs, dropout, num_labels, device, max_norm = 1.0, track_wandb=True):
     #set_seed(seed)
-    model = BertForTokenClassification.from_pretrained(MODEL_CONFIGS[model_name]["model_name"], num_labels=num_labels, ignore_mismatched_sizes=True ) # ignore mismatches in classifier head for PubMedBERT-chemical and -gene 
+    model = BertForTokenClassification.from_pretrained(MODEL_CONFIGS[model_name]["model_name"], num_labels=num_labels, ignore_mismatched_sizes=True)
     model.config.hidden_dropout_prob = dropout
     model.config.attention_probs_dropout_prob = dropout
     model.to(device)
 
     best_model_state = None # track best model state in case of overfitting
 
-    # weighted loss, ignore padding tokens for loss computation
-    #loss_fct = nn.CrossEntropyLoss(weight=class_weights_tensor, ignore_index=-100)
     loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
     
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -265,7 +260,7 @@ def train_and_evaluate_NER(model_name, seed, train_dataloader, val_dataloader, t
     per_class_f1 = compute_per_class_f1(total_test_labels, total_test_preds, label_map)
     print("Per-class F1 scores:")
     for label, scores in per_class_f1.items():
-        print(f"{label}: F1={scores['f1']:.4f}, Support={scores['support']}")
+        print(f"{label}: F1={scores['f1']}, Support={scores['support']}")
 
     rows = []
     for label, scores in per_class_f1.items():
@@ -333,8 +328,6 @@ def train_and_evaluate_NER_optuna(model_name, seed, train_dataloader, val_datalo
     model.config.attention_probs_dropout_prob = dropout
     model.to(device)
 
-    # weighted loss, ignore padding tokens for loss computation
-    #loss_fct = nn.CrossEntropyLoss(weight=class_weights_tensor, ignore_index=-100)
     loss_fct = nn.CrossEntropyLoss(ignore_index=-100)
     
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
@@ -493,7 +486,7 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
             outputs = model(input_ids, attention_mask) # forward pass
             loss = bce_loss(outputs, labels) # calculate bce loss
             if torch.isnan(loss):
-                    print(f"Batch had nan loss, skipping this batch. Number of unique labels = {torch.unique(labels).numel()}")
+                    print(f"Batch had nan loss, skipping this batch.")
                     continue
             loss.backward() # backward pass 
             torch.nn.utils.clip_grad_norm_(model.parameters(), max_norm)
@@ -622,7 +615,7 @@ def train_and_evaluate_RE_optuna(model_name, tokenizer_voc_size, seed, train_dat
     """
     Trains and evaluates a relation classification model. This can be used for an optuna study so best model state etc do not have to be specified and no models get saved.
     """
-    #set_seed(seed) #### TO DO: Das könnte man hier einmal alles auslagern und dann für NER und RE beides nutzen?
+    #set_seed(seed) 
     
     model_str = MODEL_CONFIGS[model_name]["model_name"]
     model = AutoModel.from_pretrained(model_str)

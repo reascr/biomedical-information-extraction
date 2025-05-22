@@ -12,6 +12,7 @@ import matplotlib.pyplot as plt
 script_dir = os.path.dirname(os.path.abspath(__file__))
 DATA_DIR = os.path.join(script_dir,"..", "gutbrainie2025")
 
+
 class AnnotationDataset(Dataset):
     def __init__(self, root_path, tokenizer=None, split='Train', quality_filter=['platinum_quality', 'gold_quality', 'silver_quality']):
         self.samples = []
@@ -354,11 +355,7 @@ class REDataset(AnnotationDataset):
                 subj, obj = pair
                 # exclude all possible candidate pairs (order matters because we have directional relationships between subj and obj)
                 is_positive = any(subj["text_span"] == r["subject_text_span"] and obj["text_span"] == r["object_text_span"] for r in relations)
-                #if counter < 2 and is_positive:
-                    #print("is positive: ", subj, obj, "\n")
                 if not is_positive:
-                    #if counter <2:
-                        #print("negative", subj, obj)
                     # add the negative example
                     subj_start_idx, subj_end_idx = get_adjusted_indices(subj, offset)
                     obj_start_idx, obj_end_idx = get_adjusted_indices(obj, offset)
@@ -386,8 +383,6 @@ class REDataset(AnnotationDataset):
             - input_ids
             - attention_mask
             - label (0 or 1) for binary classification
-
-        Uses a dynamic window approach to make sure entities are captured within the 512 token limit.
         """
         sample = self.relation_samples[idx]
         
@@ -400,7 +395,7 @@ class REDataset(AnnotationDataset):
         )
     
         for key in tokenized_text:
-            tokenized_text[key] = tokenized_text[key].squeeze(0) # ???
+            tokenized_text[key] = tokenized_text[key].squeeze(0)
         return {
             "input_ids": tokenized_text["input_ids"],
             "attention_mask": tokenized_text["attention_mask"],
@@ -424,10 +419,8 @@ class REDataset_enhanced_negative_sampling_strategy(AnnotationDataset):
         self.max_length = max_length
         self.relation_samples = []
 
-        #counter = 0
         # concatenate title and abstract because a relation can hold between an entity in the title and one in the abstract
         for article_id, data in self.samples:
-            #counter += 1
             title = data['metadata'].get('title', '')
             abstract = data['metadata'].get('abstract', '')
             full_text = (title + " " + abstract).strip() 
@@ -521,8 +514,6 @@ class REDataset_enhanced_negative_sampling_strategy(AnnotationDataset):
             - input_ids
             - attention_mask
             - label (0 or 1) for binary classification
-
-        Uses a dynamic window approach to make sure entities are captured within the 512 token limit.
         """
         sample = self.relation_samples[idx]
         
@@ -562,11 +553,8 @@ class REDataset_ternary(AnnotationDataset):
         self.max_length = max_length
         self.relation_samples = []
 
-        #counter = 0
-        
         # concatenate title and abstract because a relation can hold between an entity in the title and one in the abstract
         for article_id, data in self.samples:
-            #counter += 1
             title = data['metadata'].get('title', '')
             abstract = data['metadata'].get('abstract', '')
             full_text = (title + " " + abstract).strip() 
@@ -699,8 +687,8 @@ def create_dataloaders(batch_size, tokenizer, device):
     train_dataset, val_dataset = split_datasets(train_dataset, val_dataset, test_dataset)
 
     # create the data loaders
-    train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True) # TO DO: Add collate
-    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False) # might add collate_fn but because in get_item() of NERDataset class the key for the labels of an item is 'labels' this creates problems
+    train_dataloader = DataLoader(train_dataset, batch_size, shuffle=True) 
+    val_dataloader = DataLoader(val_dataset, batch_size, shuffle=False) 
     test_dataloader = DataLoader(test_dataset, batch_size, shuffle=False)
     
     return train_dataloader, val_dataloader, test_dataloader

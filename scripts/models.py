@@ -11,13 +11,13 @@ class RelationClassifier_CLS_ent1_ent2_avg_pooled(nn.Module):
         """
         Binary relation classification model using a BERT-based model with a linear classification layer on top.
         The hidden size should reflect the adjusted embedding size of the model after adding special entity tokens/markers to the tokenizer.
+        The passed relation encoding is a combination of CLS token and averaged pooled entitiy representations.
         """
 
         super(RelationClassifier_CLS_ent1_ent2_avg_pooled, self).__init__()
         self.transformer = model # BERT model 
         self.dropout = nn.Dropout(dropout) # add dropout
         self.hidden_size = hidden_size
-        #self.attention = nn.MultiheadAttention(embed_dim=hidden_size * 3, num_heads=8)
         self.classifier = nn.Linear(hidden_size * 3, 1) # input is concatenation of CLS + ent1 + ent2, output is one logit (binary classification)
 
         # ids of the entity markers
@@ -216,7 +216,7 @@ class RelationClassifier_CLSOnly(nn.Module):
         return logit
 
 
-        ##### ternary RE (multiclass classification)
+##### ternary RE (multiclass classification)
 
 class RelationClassifier_ternary_ent1_ent2_average_pooled(nn.Module):
     '''
