@@ -3,13 +3,12 @@
 # Submit a job on ucloud
 
 LOCAL_PROJECT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-#LOCAL_PROJECT_DIR="/Users/rea/Library/Mobile Documents/com~apple~CloudDocs/IT_and_Cognition/MSc_IT_and_Cognition/Masterthesis/Biomedical_Information_Extraction"# Local directory path
 SERVER_PROJECT_DIR="/home/ucloud/" # Server project directory path
 RESULTS_DIR_SERVER="$SERVER_PROJECT_DIR/results/" # path to training results on server
 echo "Enter Port:"
 read SSH_PORT
 
-SSH_KEY_PATH="~/.ssh/id_rsa" 
+SSH_KEY_PATH="~/.ssh/YOUR_PRIVATE_KEY" 
 
 echo "Copying from local: $LOCAL_PROJECT_DIR to remote: $SERVER_PROJECT_DIR"
 scp -P $SSH_PORT -i "$SSH_KEY_PATH" -r "$LOCAL_PROJECT_DIR" ucloud@ssh.cloud.sdu.dk:"$SERVER_PROJECT_DIR"
