@@ -10,7 +10,7 @@ This repository contains code and data developed for my masters thesis in IT and
 ├── notebooks
 │   ├── BiLSTM_CRF_baseline.ipynb
 │   ├── ner-statistics.ipynb
-│   └── re-bert-models-ablation-study.ipynb
+│   └── dataset-wordclouds-gutbrainie.ipynb
 ├── requirements.txt
 ├── run_on_ucloud.sh
 ├── scripts
