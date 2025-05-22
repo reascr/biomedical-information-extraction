@@ -1126,6 +1126,7 @@ def train_and_evaluate_RE_ternary_optuna(model_name, tokenizer_voc_size, seed, t
 
 
     return best_val_f1_micro
+
 ###### References ###########
 
 # Gu, Y., Tinn, R., Cheng, H., Lucas, M., Usuyama, N., Liu, X., ... & Poon, H. 2021. Domain-specific language model pretraining for biomedical natural language processing. ACM Transactions on Computing for Healthcare (HEALTH), 3(1), 1-23.

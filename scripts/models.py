@@ -138,17 +138,16 @@ class RelationClassifier_ent1_ent2_average_pooled(nn.Module):
         return logit
 
 
-
 class RelationClassifier_ent1_ent2_start_token(nn.Module):
     '''
-    Passes averaged pooled entity 1 and entity 2 to the binary classifier.
+    Passes entity start markers to a binary classifier.
     '''
     def __init__(self, model, hidden_size, dropout, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id):
         super(RelationClassifier_ent1_ent2_start_token, self).__init__()
         self.transformer = model
         self.dropout = nn.Dropout(dropout)
         self.hidden_size = hidden_size
-        self.classifier = nn.Linear(hidden_size * 2, 1)  # only ent1 + ent2, no CLS
+        self.classifier = nn.Linear(hidden_size * 2, 1)  
 
         self.ent1_start_id = ent1_start_id
         self.ent1_end_id = ent1_end_id
@@ -171,13 +170,13 @@ class RelationClassifier_ent1_ent2_start_token(nn.Module):
             ent2_start_pos = (tokens == self.ent2_start_id).nonzero(as_tuple=True)[0]
 
             if len(ent1_start_pos) > 0:
-                idx = ent1_start_pos[0].item() + 1
+                idx = ent1_start_pos[0].item() 
                 ent1_repr = token_reps[idx]
             else:
                 ent1_repr = torch.zeros(token_reps.size(1), device=token_reps.device)
 
             if len(ent2_start_pos) > 0:
-                idx = ent2_start_pos[0].item() + 1
+                idx = ent2_start_pos[0].item() 
                 ent2_repr = token_reps[idx]
             else:
                 ent2_repr = torch.zeros(token_reps.size(1), device=token_reps.device)
@@ -194,6 +193,7 @@ class RelationClassifier_ent1_ent2_start_token(nn.Module):
         logit = self.classifier(combined_repr).squeeze(1)
 
         return logit
+
 
     
 class RelationClassifier_CLSOnly(nn.Module):

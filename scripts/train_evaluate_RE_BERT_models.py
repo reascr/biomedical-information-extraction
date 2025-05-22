@@ -4,6 +4,7 @@ from models import RelationClassifier_CLS_ent1_ent2_avg_pooled, RelationClassifi
 from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve, f1_score
 from get_predictions_RE import get_entities, get_entities_ground_truth, generate_candidate_pairs
 from evaluation_gutbrainie2025 import eval_submission_6_2_binary_tag_RE, GROUND_TRUTH_PATH
+from utils import *
 from dotenv import load_dotenv
 import os
 import json
@@ -32,60 +33,23 @@ os.makedirs(RE_PREDICTIONS_DIR, exist_ok=True)
 
 # directory of the NER models we can use in the pipeline
 MODEL_SAVE_DIR = os.path.join("..", "results", "NER", "best-models") 
-
+PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "results", "RE", "BERT-models", "mention_based_preds"))
 
 # folders for ucloud drive
-DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "models")) # save on ucloud drive
-os.makedirs(DRIVE_MODEL_SAVE_DIR, exist_ok=True)
-DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "results", "predictions")) # save on ucloud drive
-DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "predictions")) # save on ucloud drive
-os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
-DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "optuna"))
-DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "BERT-models")) 
-os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
-
-DRIVE_PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "BERT-models", "mention_based_preds")) 
-os.makedirs(DRIVE_PRED_DIR_MENTION_BASED, exist_ok=True)
+#DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "models")) # save on ucloud drive
+#os.makedirs(DRIVE_MODEL_SAVE_DIR, exist_ok=True)
+#DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "results", "predictions")) # save on ucloud drive
+#DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "predictions")) # save on ucloud drive
+#os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
+#DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "optuna"))
+#DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "BERT-models")) 
+#os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
+#DRIVE_PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "BERT-models", "mention_based_preds")) 
+#os.makedirs(DRIVE_PRED_DIR_MENTION_BASED, exist_ok=True)
 
 load_dotenv()  # load the .env file with the wandb key
 wandb.login(key=os.getenv("WANDB_API_KEY"))
 
-
-############ helper function for threshold tuning #####################
-
-def find_best_inference_threshold(model, val_dataloader, device):
-    """Returns best threshold based on F1 on the validation set."""
-    model.eval()
-    all_labels, all_scores = [], []
-    with torch.no_grad():
-        for batch in tqdm(val_dataloader, desc="Test Evaluation with threshold", leave=False):
-            input_ids = batch['input_ids'].to(DEVICE)
-            attention_mask = batch['attention_mask'].to(DEVICE)
-            labels = batch['label'].to(DEVICE).float()
-
-            logits = model(input_ids, attention_mask)
-            probs = torch.sigmoid(logits).cpu().numpy()
-
-            all_scores.extend(probs)
-            all_labels.extend(labels.cpu().numpy())
-    
-    all_scores = np.array(all_scores)
-    all_labels = np.array(all_labels)
-
-    # cf. https://scikit-learn.org/stable/modules/generated/sklearn.metrics.precision_recall_curve.html
-    precisions, recalls, thresholds = precision_recall_curve(all_labels, all_scores)
-    f1s = 2 * precisions * recalls / (precisions + recalls + 1e-8) 
-    best_idx = np.nanargmax(f1s) # get index of highet f1
-    best_threshold = thresholds[best_idx] # get best threshold
-
-    # https://scikit-learn.org/stable/modules/generated/sklearn.metrics.PrecisionRecallDisplay.html#sklearn.metrics.PrecisionRecallDisplay
-    disp = PrecisionRecallDisplay(precision=precisions, recall=recalls)
-    disp.plot()
-
-    # plt.savefig() # save this as well!!! seed model
-    plt.show()
-
-    return best_threshold
 
 ############ TRAINING #######################################################################
 
@@ -101,7 +65,7 @@ best_models = {}
 results = []
 
 for model_name in MODEL_CONFIGS.keys():
-    file_path = os.path.join(DRIVE_OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
+    file_path = os.path.join(OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
     with open(file_path, "r") as f:
         data = json.load(f)
         
@@ -185,7 +149,7 @@ for model_name in MODEL_CONFIGS.keys():
             best_model_state = model.state_dict()
             best_model_seed = seed
 
-        seed_model_path = os.path.join(DRIVE_MODEL_SAVE_DIR, f"{model_name}_{seed}.pt") 
+        seed_model_path = os.path.join(MODEL_SAVE_DIR, f"{model_name}_{seed}.pt") 
         torch.save(model.state_dict(), seed_model_path) # saves all models 
 
     #best_model_path = os.path.join(DRIVE_MODEL_SAVE_DIR, f"{model_name}_best.pt")
@@ -216,7 +180,7 @@ for model_name in MODEL_CONFIGS.keys():
 #wandb.finish()
 
 results_df = pd.DataFrame(results)
-results_json_path = os.path.join(DRIVE_RESULTS_DIR, "RE_training_results.json")
+results_json_path = os.path.join(RESULTS_DIR, "RE_training_results.json")
 results_df.to_json(results_json_path, orient="records", indent=4)
 
 
@@ -257,7 +221,7 @@ ax.spines["right"].set_visible(False)
 
 plt.tight_layout()
 
-plt.savefig(os.path.join(DRIVE_RESULTS_DIR, "f1_3_models_micro.png"), dpi=600)
+plt.savefig(os.path.join(RESULTS_DIR, "f1_3_models_micro.png"), dpi=600)
 plt.show()
 
 # Macro-F1 Score
@@ -284,7 +248,7 @@ ax.spines["right"].set_visible(False)
 
 plt.tight_layout()
 
-plt.savefig(os.path.join(DRIVE_RESULTS_DIR, "f1_3_models_macro.png"), dpi=600)
+plt.savefig(os.path.join(RESULTS_DIR, "f1_3_models_macro.png"), dpi=600)
 plt.show()
 
 
@@ -298,7 +262,7 @@ use_ground_truth = True # uses ground truth NER annotations in case ground truth
 with open(os.path.join(DATA_DIR, "Annotations/Dev/json_format/dev.json"), "r")as f:
     ground_truth_data = json.load(f)
 
-PRED_DIR = os.path.join(DRIVE_RESULTS_DIR,"predictions/")
+PRED_DIR = os.path.join(RESULTS_DIR,"predictions/")
 os.makedirs(PRED_DIR, exist_ok=True)
 
 ### Get final metrics for all models and all seeds and then averaged over seed (but also max values) ###################
@@ -318,7 +282,7 @@ for model_name in MODEL_CONFIGS.keys():
     ent2_start_id = tokenizer.convert_tokens_to_ids("<ent2>")
     ent2_end_id   = tokenizer.convert_tokens_to_ids("</ent2>")
 
-    file_path = os.path.join(DRIVE_OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
+    file_path = os.path.join(OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
 
     with open(file_path, "r") as f:
         data = json.load(f)
@@ -327,7 +291,7 @@ for model_name in MODEL_CONFIGS.keys():
     DROPOUT = best_params["dropout"] # get the best dropout for the model intitalization below
 
     for seed in seeds:
-        model_path = f"{DRIVE_MODEL_SAVE_DIR}/{model_name}_{seed}.pt" # get saved best model state for that random seed from MODEL_SAVE_DIR
+        model_path = f"{MODEL_SAVE_DIR}/{model_name}_{seed}.pt" # get saved best model state for that random seed from MODEL_SAVE_DIR
         
         model = AutoModel.from_pretrained(model_name_full)
         model.resize_token_embeddings(tokenizer_voc_size)  # adjust embeddings of the model for special tokens
@@ -343,7 +307,7 @@ for model_name in MODEL_CONFIGS.keys():
         predictions_mention_based = {}
 
         if not use_ground_truth:
-            ner_prediction_file = os.path.join(DRIVE_NER_PREDICTIONS_DIR, f"Predictions_{model_name}_{seed}.json")
+            ner_prediction_file = os.path.join(NER_PREDICTIONS_DIR, f"Predictions_{model_name}_{seed}.json")
             with open(ner_prediction_file, "r") as g:
                 ner_predictions = json.load(g)
 
@@ -378,7 +342,7 @@ for model_name in MODEL_CONFIGS.keys():
 
                 if relation_exists:
                     rel_info = {"subject_label": entity1["label"], "object_label": entity2["label"]}
-                    rel_info_mention_based = {"subject_label": entity1["text_span"], "object_label": entity2["text_span"], "subject_start_index":entity1["start_idx"], "subject_end_index":entity1["end_idx"], "object_start_index":entity2["start_idx"], "object_end_index":entity2["end_idx"],  "score": score}
+                    rel_info_mention_based = {"subject_text_span": entity1["text_span"], "object_text_span": entity2["text_span"], "subject_label": entity1["label"], "object_label": entity2["label"], "subject_start_index":entity1["start_idx"], "subject_end_index":entity1["end_idx"], "object_start_index":entity2["start_idx"], "object_end_index":entity2["end_idx"],  "score": score}
 
                     if abstract_id not in predictions:
                         predictions[abstract_id] = {"binary_tag_based_relations": []}
@@ -389,7 +353,7 @@ for model_name in MODEL_CONFIGS.keys():
                         predictions[abstract_id]["binary_tag_based_relations"].append(rel_info) # we want a set of binary tag based relations for gutbrainie
 
         pred_filename = os.path.join(PRED_DIR, f"Predictions_{model_name}_{seed}.json")
-        pred_filename_mention_based = os.path.join(DRIVE_PRED_DIR_MENTION_BASED, f"Predictions_mention_based_{model_name}_{seed}.json")
+        pred_filename_mention_based = os.path.join(PRED_DIR_MENTION_BASED, f"Predictions_mention_based_{model_name}_{seed}.json")
         with open(pred_filename, "w") as f:
             json.dump(predictions, f, indent=4)
         with open(pred_filename_mention_based, "w") as f:
@@ -442,8 +406,8 @@ for filename in os.listdir(PREDICTION_PATH_DIR):
         print(f"Micro-recall: {round(micro_recall, round_to_decimal_position)}")
         print(f"Micro-F1: {round(micro_f1, round_to_decimal_position)}")
 
-best_bert_scores_path = os.path.join(DRIVE_RESULTS_DIR,"best_bert_scores.json")
-all_bert_scores_path = os.path.join(DRIVE_RESULTS_DIR,"all_bert_scores.json")
+best_bert_scores_path = os.path.join(RESULTS_DIR,"best_bert_scores.json")
+all_bert_scores_path = os.path.join(RESULTS_DIR,"all_bert_scores.json")
 
 with open(best_bert_scores_path, "w") as json_file:
     json.dump(best_bert_scores, json_file, indent=4) # the best results

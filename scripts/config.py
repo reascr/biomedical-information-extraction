@@ -23,6 +23,7 @@ MODEL_CONFIGS = {
     },}
 '''
 
+
 label_map = {
     0: "B-DDF", 1: "B-anatomical location", 2: "B-animal", 3: "B-bacteria", 4: "B-biomedical technique",
     5: "B-chemical", 6: "B-dietary supplement", 7: "B-drug", 8: "B-food", 9: "B-gene", 10: "B-human",
@@ -37,4 +38,4 @@ label_map_RE = {0: 'administered', 1: 'affect', 2: 'change abundance', 3: 'chang
 
 
 seeds = [42,1234,29,7,123]
-# seeds = [42] # test
+#seeds = [42] # test
