@@ -40,21 +40,22 @@ PRED_DIR_MENTION_BASED_EXTENDED = os.path.join(script_dir,"..", "results", "RE-t
 os.makedirs(PRED_DIR_MENTION_BASED_EXTENDED, exist_ok=True)
 
 # folders for ucloud drive
-#DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "models")) # save on ucloud drive
-#os.makedirs(DRIVE_MODEL_SAVE_DIR, exist_ok=True)
-#DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "results", "predictions")) # save on ucloud drive
-#DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "predictions")) # save on ucloud drive
-#os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
-#DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
-#DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
-#DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models")) 
-#os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
+'''
+DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "models")) # save on ucloud drive
+os.makedirs(DRIVE_MODEL_SAVE_DIR, exist_ok=True)
+DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "results", "predictions")) # save on ucloud drive
+DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "predictions")) # save on ucloud drive
+os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
+DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
+DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
+DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models")) 
+os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
 
-#DRIVE_PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds")) 
-#os.makedirs(DRIVE_PRED_DIR_MENTION_BASED, exist_ok=True)
+DRIVE_PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds")) 
+os.makedirs(DRIVE_PRED_DIR_MENTION_BASED, exist_ok=True)
 
-#DRIVE_PRED_DIR_MENTION_BASED_EXTENDED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds_extended")) 
-#os.makedirs(DRIVE_PRED_DIR_MENTION_BASED_EXTENDED, exist_ok=True)
+DRIVE_PRED_DIR_MENTION_BASED_EXTENDED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds_extended")) 
+os.makedirs(DRIVE_PRED_DIR_MENTION_BASED_EXTENDED, exist_ok=True)'''
 
 load_dotenv()  # load the .env file with the wandb key
 wandb.login(key=os.getenv("WANDB_API_KEY"))
