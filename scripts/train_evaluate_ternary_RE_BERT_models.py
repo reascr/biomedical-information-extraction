@@ -33,23 +33,28 @@ os.makedirs(RE_PREDICTIONS_DIR, exist_ok=True)
 # directory of the NER models we can use in the pipeline
 MODEL_SAVE_DIR = os.path.join("..", "results", "NER", "best-models") 
 
+PRED_DIR_MENTION_BASED = os.path.join(script_dir,"..", "results", "RE-ternary", "BERT-models",  "mention_based_preds")
+os.makedirs(PRED_DIR_MENTION_BASED, exist_ok=True)
+
+PRED_DIR_MENTION_BASED_EXTENDED = os.path.join(script_dir,"..", "results", "RE-ternary", "BERT-models", "mention_based_preds_extended")
+os.makedirs(PRED_DIR_MENTION_BASED_EXTENDED, exist_ok=True)
 
 # folders for ucloud drive
-DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "models")) # save on ucloud drive
-os.makedirs(DRIVE_MODEL_SAVE_DIR, exist_ok=True)
-DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "results", "predictions")) # save on ucloud drive
-DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "predictions")) # save on ucloud drive
-os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
+#DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "models")) # save on ucloud drive
+#os.makedirs(DRIVE_MODEL_SAVE_DIR, exist_ok=True)
+#DRIVE_NER_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "results", "predictions")) # save on ucloud drive
+#DRIVE_RE_PREDICTIONS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "predictions")) # save on ucloud drive
+#os.makedirs(DRIVE_RE_PREDICTIONS_DIR, exist_ok=True)
 #DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
-DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
-DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models")) 
-os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
+#DRIVE_OPTUNA_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "optuna"))
+#DRIVE_RESULTS_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models")) 
+#os.makedirs(DRIVE_RESULTS_DIR, exist_ok=True)
 
-DRIVE_PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds")) 
-os.makedirs(DRIVE_PRED_DIR_MENTION_BASED, exist_ok=True)
+#DRIVE_PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds")) 
+#os.makedirs(DRIVE_PRED_DIR_MENTION_BASED, exist_ok=True)
 
-DRIVE_PRED_DIR_MENTION_BASED_EXTENDED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds_extended")) 
-os.makedirs(DRIVE_PRED_DIR_MENTION_BASED_EXTENDED, exist_ok=True)
+#DRIVE_PRED_DIR_MENTION_BASED_EXTENDED = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "results", "BERT-models", "mention_based_preds_extended")) 
+#os.makedirs(DRIVE_PRED_DIR_MENTION_BASED_EXTENDED, exist_ok=True)
 
 load_dotenv()  # load the .env file with the wandb key
 wandb.login(key=os.getenv("WANDB_API_KEY"))
@@ -70,7 +75,7 @@ best_models = {}
 results = []
 
 for model_name in MODEL_CONFIGS.keys():
-    file_path = os.path.join(DRIVE_OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
+    file_path = os.path.join(OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
     with open(file_path, "r") as f:
         data = json.load(f)
         
@@ -152,7 +157,7 @@ for model_name in MODEL_CONFIGS.keys():
         if test_macro_f1 > best_macro_f1:
             best_macro_f1 = test_macro_f1
 
-        seed_model_path = os.path.join(DRIVE_MODEL_SAVE_DIR, f"{model_name}_{seed}.pt") 
+        seed_model_path = os.path.join(MODEL_SAVE_DIR, f"{model_name}_{seed}.pt") 
         torch.save(model.state_dict(), seed_model_path) # saves all models 
 
     # get mean and std of micro and macro F1s
@@ -176,19 +181,19 @@ for model_name in MODEL_CONFIGS.keys():
 
 
 results_df = pd.DataFrame(results)
-results_json_path = os.path.join(DRIVE_RESULTS_DIR, "RE_training_results.json")
+results_json_path = os.path.join(RESULTS_DIR, "RE_training_results.json")
 results_df.to_json(results_json_path, orient="records", indent=4)
 
 
 ########### EVALUATION #####################
 
 
-use_ground_truth = False # uses ground truth NER annotations in case ground truth is set to True, otherwise uses NER predictions
+use_ground_truth = True # uses ground truth NER annotations in case ground truth is set to True, otherwise uses NER predictions
 
 with open(os.path.join(DATA_DIR, "Annotations/Dev/json_format/dev.json"), "r")as f:
     ground_truth_data = json.load(f)
 
-PRED_DIR = os.path.join(DRIVE_RESULTS_DIR,"predictions/")
+PRED_DIR = os.path.join(RESULTS_DIR,"predictions/")
 os.makedirs(PRED_DIR, exist_ok=True)
 
 
@@ -205,7 +210,7 @@ for model_name in MODEL_CONFIGS.keys():
     ent2_start_id = tokenizer.convert_tokens_to_ids("<ent2>")
     ent2_end_id   = tokenizer.convert_tokens_to_ids("</ent2>")
 
-    file_path = os.path.join(DRIVE_OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
+    file_path = os.path.join(OPTUNA_RESULTS_DIR, f"optuna_results_{model_name}.json")
 
     with open(file_path, "r") as f:
         data = json.load(f)
@@ -214,7 +219,7 @@ for model_name in MODEL_CONFIGS.keys():
     DROPOUT = best_params["dropout"] # get the best dropout for the model intitalization below
 
     for seed in seeds:
-        model_path = f"{DRIVE_MODEL_SAVE_DIR}/{model_name}_{seed}.pt" # get saved best model state for that random seed from MODEL_SAVE_DIR
+        model_path = f"{MODEL_SAVE_DIR}/{model_name}_{seed}.pt" # get saved best model state for that random seed from MODEL_SAVE_DIR
         
         model = AutoModel.from_pretrained(model_name_full)
         model.resize_token_embeddings(tokenizer_voc_size)  # adjust embeddings of the model for special tokens
@@ -231,7 +236,7 @@ for model_name in MODEL_CONFIGS.keys():
         predictions_mention_based_extended = {} # predictions with score and start and end indices of entities
 
         if not use_ground_truth:
-            ner_prediction_file = os.path.join(DRIVE_NER_PREDICTIONS_DIR, f"Predictions_{model_name}_{seed}.json")
+            ner_prediction_file = os.path.join(NER_PREDICTIONS_DIR, f"Predictions_{model_name}_{seed}.json")
             with open(ner_prediction_file, "r") as g:
                 ner_predictions = json.load(g)
 
@@ -240,6 +245,8 @@ for model_name in MODEL_CONFIGS.keys():
                 entities = get_entities(abstract_id, article_data)
             else:
                 entities = get_entities(abstract_id, ner_predictions)
+            
+            print("entities", entities)
 
             metadata = article_data.get("metadata", {})
             title = metadata.get("title", "")
@@ -303,8 +310,9 @@ for model_name in MODEL_CONFIGS.keys():
                         predictions[abstract_id]["ternary_tag_based_relations"].append(rel_info) # here we only want a set of predictions because it is tag based
 
         pred_filename = os.path.join(PRED_DIR, f"Predictions_ternary_RE_{model_name}_{seed}.json")
-        pred_filename_mention_based = os.path.join(DRIVE_PRED_DIR_MENTION_BASED, f"Predictions_ternary_RE_mention_based_{model_name}_{seed}.json")
-        pred_filename_mention_based_extended = os.path.join(DRIVE_PRED_DIR_MENTION_BASED_EXTENDED, f"Predictions_ternary_RE_mention_based_extended_{model_name}_{seed}.json")
+        pred_filename_mention_based = os.path.join(PRED_DIR_MENTION_BASED, f"Predictions_ternary_RE_mention_based_{model_name}_{seed}.json")
+        pred_filename_mention_based_extended = os.path.join(PRED_DIR_MENTION_BASED_EXTENDED, f"Predictions_ternary_RE_mention_based_extended_{model_name}_{seed}.json")
+
         with open(pred_filename, "w") as f:
             json.dump(predictions, f, indent=4)
         with open(pred_filename_mention_based, "w") as f:
@@ -364,8 +372,8 @@ for filename in os.listdir(PREDICTION_PATH_DIR):
         print(f"Micro-recall: {round(micro_recall, round_to_decimal_position)}")
         print(f"Micro-F1: {round(micro_f1, round_to_decimal_position)}")
 
-best_bert_scores_path = os.path.join(DRIVE_RESULTS_DIR,"best_bert_scores_ternary_tag_based_RE.json")
-all_bert_scores_path = os.path.join(DRIVE_RESULTS_DIR,"all_bert_scores__ternary_tag_based_RE.json")
+best_bert_scores_path = os.path.join(RESULTS_DIR,"best_bert_scores_ternary_tag_based_RE.json")
+all_bert_scores_path = os.path.join(RESULTS_DIR,"all_bert_scores__ternary_tag_based_RE.json")
 
 with open(best_bert_scores_path, "w") as json_file:
     json.dump(best_bert_scores, json_file, indent=4) # the best results
@@ -376,7 +384,7 @@ with open(all_bert_scores_path, "w") as json_file:
 
 ### 2. ternary mention based RE
 
-PREDICTION_PATH_DIR = DRIVE_PRED_DIR_MENTION_BASED # use the mention based predictions for ternary RE
+PREDICTION_PATH_DIR = PRED_DIR_MENTION_BASED # use the mention based predictions for ternary RE
 
 with open(GROUND_TRUTH_PATH, 'r', encoding='utf-8') as file:
     ground_truth = json.load(file)
@@ -422,8 +430,8 @@ for filename in os.listdir(PREDICTION_PATH_DIR):
         print(f"Micro-recall: {round(micro_recall, round_to_decimal_position)}")
         print(f"Micro-F1: {round(micro_f1, round_to_decimal_position)}")
 
-best_bert_scores_path = os.path.join(DRIVE_RESULTS_DIR,"best_bert_scores_ternary_mention_based_RE.json")
-all_bert_scores_path = os.path.join(DRIVE_RESULTS_DIR,"all_bert_scores__ternary_tag_mention_based_RE.json")
+best_bert_scores_path = os.path.join(RESULTS_DIR,"best_bert_scores_ternary_mention_based_RE.json")
+all_bert_scores_path = os.path.join(RESULTS_DIR,"all_bert_scores__ternary_tag_mention_based_RE.json")
 
 with open(best_bert_scores_path, "w") as json_file:
     json.dump(best_bert_scores, json_file, indent=4) # the best results

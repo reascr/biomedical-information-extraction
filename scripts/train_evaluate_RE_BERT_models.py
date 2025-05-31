@@ -1,7 +1,7 @@
 from config import MODEL_CONFIGS, label_map, seeds
 from datasets import create_dataloaders_RE, get_adjusted_indices, mark_entities
-from models import RelationClassifier_CLS_ent1_ent2_avg_pooled, RelationClassifier_CLSOnly, RelationClassifier_ent1_ent2_start_token, RelationClassifier_ent1_ent2_average_pooled
-from sklearn.metrics import PrecisionRecallDisplay, precision_recall_curve, f1_score
+#from models import RelationClassifier_CLS_ent1_ent2_avg_pooled, RelationClassifier_CLSOnly, RelationClassifier_ent1_ent2_start_token, RelationClassifier_ent1_ent2_average_pooled
+from models import RelationClassifier_ent1_ent2_start_token
 from get_predictions_RE import get_entities, get_entities_ground_truth, generate_candidate_pairs
 from evaluation_gutbrainie2025 import eval_submission_6_2_binary_tag_RE, GROUND_TRUTH_PATH
 from utils import *
@@ -33,7 +33,8 @@ os.makedirs(RE_PREDICTIONS_DIR, exist_ok=True)
 
 # directory of the NER models we can use in the pipeline
 MODEL_SAVE_DIR = os.path.join("..", "results", "NER", "best-models") 
-PRED_DIR_MENTION_BASED = os.path.abspath(os.path.join(script_dir, "..", "results", "RE", "BERT-models", "mention_based_preds"))
+PRED_DIR_MENTION_BASED = os.path.join(script_dir, "..", "results", "RE", "BERT-models", "mention_based_preds")
+os.makedirs(PRED_DIR_MENTION_BASED, exist_ok=True)
 
 # folders for ucloud drive
 #DRIVE_MODEL_SAVE_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "models")) # save on ucloud drive
@@ -183,7 +184,7 @@ results_df = pd.DataFrame(results)
 results_json_path = os.path.join(RESULTS_DIR, "RE_training_results.json")
 results_df.to_json(results_json_path, orient="records", indent=4)
 
-
+'''
 # Plot the average micro and macro F1 for all three models 
 pastel_colors = { 
     "BERT": "#D6E8FF",     
@@ -250,11 +251,11 @@ plt.tight_layout()
 
 plt.savefig(os.path.join(RESULTS_DIR, "f1_3_models_macro.png"), dpi=600)
 plt.show()
-
+'''
 
 ########### EVALUATION #####################
 THRESHOLD_INFERENCE = 0.5 
-use_ground_truth = True # uses ground truth NER annotations in case ground truth is set to True, otherwise uses NER predictions
+use_ground_truth = False # uses ground truth NER annotations in case ground truth is set to True, otherwise uses NER predictions
 
 with open(os.path.join(DATA_DIR, "Annotations/Dev/json_format/dev.json"), "r")as f:
     ground_truth_data = json.load(f)
@@ -291,7 +292,7 @@ for model_name in MODEL_CONFIGS.keys():
 
         hidden_size = model.config.hidden_size
     
-        model = RelationClassifier_ent1_ent2_average_pooled(model, hidden_size, DROPOUT, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id).to(DEVICE) # CHANGE RelationClassifier type here
+        model = RelationClassifier_ent1_ent2_start_token(model, hidden_size, DROPOUT, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id).to(DEVICE) # CHANGE RelationClassifier type here
         
         model.load_state_dict(torch.load(model_path, map_location=DEVICE))
         model.eval() 

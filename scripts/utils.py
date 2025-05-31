@@ -16,16 +16,27 @@ from transformers import BertForTokenClassification, AutoModel, get_scheduler, A
 
 
 script_dir = os.path.dirname(os.path.abspath(__file__))
-DRIVE_PLOT_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "plots")) # save on ucloud drive
-DRIVE_PLOT_DIR_RE = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "plots"))
+#DRIVE_PLOT_DIR = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "NER", "plots")) # save on ucloud drive
+#DRIVE_PLOT_DIR_RE = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE-ternary", "plots"))
+#os.makedirs(DRIVE_PLOT_DIR_RE, exist_ok=True)
+
+#DRIVE_RESULTS_DIR_NER = os.path.join("..", "results", "NER", "BERT-models") # specify your result directory. All plots will be saved here
+#os.makedirs(DRIVE_RESULTS_DIR_NER, exist_ok=True)
+
+#DRIVE_RESULTS_DIR_RE = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "BERT-models")) 
+#os.makedirs(DRIVE_RESULTS_DIR_RE, exist_ok=True)
+
+DRIVE_RESULTS_DIR_RE = os.path.join(script_dir, "..", "results", "RE-ternary", "BERT-models")
+os.makedirs(DRIVE_RESULTS_DIR_RE, exist_ok=True)
+
+DRIVE_PLOT_DIR_RE = os.path.join(script_dir, "..", "results", "RE-ternary", "plots")
 os.makedirs(DRIVE_PLOT_DIR_RE, exist_ok=True)
 
+DRIVE_PLOT_DIR = os.path.join(script_dir, "..", "results", "NER", "plots")
+os.makedirs(DRIVE_PLOT_DIR, exist_ok=True)
 
-DRIVE_RESULTS_DIR_NER = os.path.join("..", "results", "NER", "BERT-models") # specify your result directory. All plots will be saved here
+DRIVE_RESULTS_DIR_NER = os.path.join(script_dir, "..", "results", "NER", "BERT-models") # specify your result directory. All plots will be saved here
 os.makedirs(DRIVE_RESULTS_DIR_NER, exist_ok=True)
-
-DRIVE_RESULTS_DIR_RE = os.path.abspath(os.path.join(script_dir, "..", "..", "..", "..", "work", "RE", "results", "BERT-models")) 
-os.makedirs(DRIVE_RESULTS_DIR_RE, exist_ok=True)
 
 
 # cf. https://github.com/heraclex12/R-BERT-Relation-Classification/blob/master/BERT_for_Relation_Classification.ipynb, assessed April 10, 2025
@@ -450,7 +461,7 @@ def train_and_evaluate_RE(model_name, tokenizer_voc_size, seed, train_dataloader
 
     hidden_size = model.config.hidden_size
     
-    model = RelationClassifier_ent1_ent2_average_pooled(model, hidden_size, dropout, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id).to(device) # CHANGE RELATIONCLASSIFER HERE
+    model = RelationClassifier_ent1_ent2_start_token(model, hidden_size, dropout, ent1_start_id, ent1_end_id, ent2_start_id, ent2_end_id).to(device) # CHANGE RELATIONCLASSIFER HERE
 
     bce_loss = nn.BCEWithLogitsLoss()  # use binary crossentropy loss, cf. https://pytorch.org/docs/stable/generated/torch.nn.BCEWithLogitsLoss.html (combines a Sigmoid layer and BCELoss).
     optimizer = AdamW(model.parameters(), lr=lr, weight_decay=weight_decay)
