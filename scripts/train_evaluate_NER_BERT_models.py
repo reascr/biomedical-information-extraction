@@ -290,7 +290,7 @@ best_bert_scores = {
     "PubMedBERT": {"precision": 0, "recall": 0, "f1": 0, "micro_precision": 0, "micro_recall": 0, "micro_f1": 0}
 }
 
-for filename in os.listdir(PREDICTION_PATH_DIR): # seed namen irgendwo aufschreiben????
+for filename in os.listdir(PREDICTION_PATH_DIR): 
     file_path = os.path.join(PREDICTION_PATH_DIR, filename)
     
     if filename.endswith(".json"):

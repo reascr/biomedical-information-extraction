@@ -338,7 +338,6 @@ for model_name in MODEL_CONFIGS.keys():
                 if relation_exists:
                     rel_info = {"subject_label": entity1["label"], "object_label": entity2["label"]}
                     rel_info_mention_based = {"subject_text_span": entity1["text_span"], "object_text_span": entity2["text_span"], "subject_label": entity1["label"], "object_label": entity2["label"], "subject_start_index":entity1["start_idx"], "subject_end_index":entity1["end_idx"], "object_start_index":entity2["start_idx"], "object_end_index":entity2["end_idx"],  "score": score}
-
                     if abstract_id not in predictions:
                         predictions[abstract_id] = {"binary_tag_based_relations": []}
                         predictions_mention_based[abstract_id] = {"binary_mention_based_relations": []}

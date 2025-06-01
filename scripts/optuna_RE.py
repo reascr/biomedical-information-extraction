@@ -105,12 +105,12 @@ for model_name, model_results in results.items():
 end_time = time.time()
 total_time = end_time - start_time
 
-# Format time nicely
+
 mins, secs = divmod(total_time, 60)
 hours, mins = divmod(mins, 60)
 formatted_time = f"Total execution time: {int(hours)}h {int(mins)}m {secs:.2f}s"
 
-# Save to a .txt file
+# save
 time_file_path = os.path.join(DRIVE_UCLOUD_DIR_OPTUNA, "execution_time.txt")
 with open(time_file_path, "w") as f:
     f.write(formatted_time)
