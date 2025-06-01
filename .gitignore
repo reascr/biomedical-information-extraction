@@ -1,20 +1,17 @@
-# Ignore the Data folder
+# ignore data
 gutbrainie2025/
 results/
 
-# Ignore macOS system files
 .DS_Store
 ._*
 
-# Ignore Jupyter Notebook checkpoints
 .ipynb_checkpoints/
 
-# Ignore Python cache
 __pycache__/
 *.pyc
 *.pyo
 
-# ignore the env file
+
 .env
 
 # ignore ssh key
